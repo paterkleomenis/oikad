@@ -64,6 +64,17 @@ Oikad is a student registration management system that allows students to:
    ```bash
    flutter run --dart-define-from-file=.env
 
+4. Build the application:
+   ```bash
+   # Load environment variables (Linux/Mac)
+   set -a && source .env && set +a
+
+   # Build debug APK
+   flutter build apk --debug \
+     --dart-define=DEV_SUPABASE_URL="$DEV_SUPABASE_URL" \
+     --dart-define=DEV_SUPABASE_ANON_KEY="$DEV_SUPABASE_ANON_KEY" \
+     --dart-define=DEBUG_MODE=true
+
 ## Contributing
 
 Feel free to contribute to this project by opening issues or submitting pull requests.
