@@ -2,17 +2,43 @@
 
 A Flutter application with Supabase backend integration.
 
-## Description
+## What does Oikad do?
 
-A new Flutter project built with modern development practices, featuring backend integration through Supabase.
+Oikad is a student registration management system that allows students to:
 
-## Features
+- **Complete comprehensive registration forms** with personal details, educational background, and family information
+- **Switch seamlessly between English and Greek languages** with full localization support
+- **Submit secure data** to a Supabase backend with built-in validation and sanitization
+- **Experience modern UI/UX** with Material Design 3, dark/light theme support, and smooth animations
+- **Access the platform across multiple devices** (iOS, Android, Web, Desktop) thanks to Flutter's cross-platform capabilities
 
-- ✨ Flutter framework for cross-platform development
-- 🗄️ Supabase integration for backend services
-- 🔄 State management with Provider
-- 🌍 Internationalization support with flutter_localizations
-- 📱 Cross-platform compatibility (iOS, Android, Web, Desktop)
+### Key Features
+
+- 📝 **Multi-section registration form**:
+  - Personal details (name, birth date, ID information)
+  - Educational information (university, department, year of study)
+  - Family information (parents' details and contact information)
+  - Address information
+
+- 🌍 **Bilingual support**:
+  - Full English and Greek localization
+  - Easy language switching with persistent preferences
+
+- 🎨 **Modern interface**:
+  - Material Design 3 components
+  - Dark and light theme modes
+  - Smooth animations and transitions
+  - Hero animations for seamless navigation
+
+- 🔒 **Security features**:
+  - Input validation and sanitization
+  - Rate limiting for form submissions
+  - Secure data transmission to Supabase backend
+
+- 📱 **Cross-platform compatibility**:
+  - iOS and Android mobile apps
+  - Web application
+  - Desktop applications (Windows, macOS, Linux)
 
 ## Getting Started
 
@@ -27,7 +53,7 @@ A new Flutter project built with modern development practices, featuring backend
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/oikad.git
+   git clone https://github.com/paterkleomenis/oikad.git
    cd oikad
 
 2. Install dependencies:
