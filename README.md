@@ -75,6 +75,13 @@ Oikad is a student registration management system that allows students to:
      --dart-define=DEV_SUPABASE_ANON_KEY="$DEV_SUPABASE_ANON_KEY" \
      --dart-define=DEBUG_MODE=true
 
+   # Build release APK
+   flutter build apk --release \
+     --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+     --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
+     --dart-define=DART_DEFINE_PRODUCTION=true \
+     --dart-define=DEBUG_MODE=false
+
 ## Contributing
 
 Feel free to contribute to this project by opening issues or submitting pull requests.
