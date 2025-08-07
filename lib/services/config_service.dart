@@ -1,13 +1,26 @@
+import 'package:flutter/foundation.dart';
+
 class ConfigService {
   // Supabase configuration - SECURITY: Never expose API keys in production
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: '', // Remove default for security
+    defaultValue: '',
   );
 
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: '', // Remove default for security
+    defaultValue: '',
+  );
+
+  // Development configuration from environment only
+  static const String devSupabaseUrl = String.fromEnvironment(
+    'DEV_SUPABASE_URL',
+    defaultValue: '',
+  );
+
+  static const String devSupabaseAnonKey = String.fromEnvironment(
+    'DEV_SUPABASE_ANON_KEY',
+    defaultValue: '',
   );
 
   // Security validation
@@ -15,19 +28,20 @@ class ConfigService {
     return supabaseUrl.isNotEmpty &&
         supabaseAnonKey.isNotEmpty &&
         supabaseUrl.startsWith('https://') &&
-        supabaseAnonKey.length > 20; // Basic validation
+        supabaseAnonKey.length > 20;
   }
 
-  // Development fallbacks (only for development builds)
-  static const String _devSupabaseUrl =
-      'https://hontvzogixrfxjqsfkny.supabase.co';
-  static const String _devSupabaseAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhvbnR2em9naXhyZnhqcXNma255Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE5OTQ4MDUsImV4cCI6MjA2NzU3MDgwNX0.UaOMTWerS4mS4orxuOREeA4xSQEc7H_gPGSFFgl6cLg';
+  static bool get isDevConfigValid {
+    return devSupabaseUrl.isNotEmpty &&
+        devSupabaseAnonKey.isNotEmpty &&
+        devSupabaseUrl.startsWith('https://') &&
+        devSupabaseAnonKey.length > 20;
+  }
 
   // Get secure configuration
   static String get secureSupabaseUrl {
     if (supabaseUrl.isNotEmpty) return supabaseUrl;
-    if (!isProduction && enableDebugMode) return _devSupabaseUrl;
+    if (!isProduction && kDebugMode && isDevConfigValid) return devSupabaseUrl;
     throw Exception(
       'SECURITY ERROR: Supabase URL not configured. Set SUPABASE_URL environment variable.',
     );
@@ -35,7 +49,8 @@ class ConfigService {
 
   static String get secureSupabaseAnonKey {
     if (supabaseAnonKey.isNotEmpty) return supabaseAnonKey;
-    if (!isProduction && enableDebugMode) return _devSupabaseAnonKey;
+    if (!isProduction && kDebugMode && isDevConfigValid)
+      return devSupabaseAnonKey;
     throw Exception(
       'SECURITY ERROR: Supabase API key not configured. Set SUPABASE_ANON_KEY environment variable.',
     );

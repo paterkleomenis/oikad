@@ -3,29 +3,31 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'notifiers.dart';
-import 'providers/registration_provider.dart';
 import 'screens/registration_screen.dart';
 import 'services/config_service.dart';
 import 'services/localization_service.dart';
-import 'services/theme_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Validate security configuration before initializing
-  ConfigService.validateSecurity();
-
-  await Supabase.initialize(
-    url: ConfigService.secureSupabaseUrl,
-    anonKey: ConfigService.secureSupabaseAnonKey,
-  );
+  // Try to initialize Supabase if credentials are available
+  try {
+    ConfigService.validateSecurity();
+    await Supabase.initialize(
+      url: ConfigService.secureSupabaseUrl,
+      anonKey: ConfigService.secureSupabaseAnonKey,
+    );
+    print('Supabase initialized successfully');
+  } catch (e) {
+    print('Supabase initialization failed: $e');
+    print('App will run without database functionality');
+  }
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LocaleNotifier()),
         ChangeNotifierProvider(create: (_) => ThemeNotifier()),
-        ChangeNotifierProvider(create: (_) => RegistrationProvider()),
       ],
       child: const MyApp(),
     ),

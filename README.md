@@ -62,7 +62,7 @@ Oikad is a student registration management system that allows students to:
 
 3. Run the application:
    ```bash
-   flutter run
+   flutter run --dart-define-from-file=.env
 
 ## Contributing
 

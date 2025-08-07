@@ -1,90 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
-import '../notifiers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/validation_service.dart';
-import '../services/sanitization_service.dart';
+import '../notifiers.dart';
 import '../services/config_service.dart';
+import '../services/localization_service.dart';
+import '../services/sanitization_service.dart';
+import '../services/validation_service.dart';
 
-// Localization map and t() function (should match your main.dart)
-const Map<String, Map<String, String>> localizedStrings = {
-  'en': {
-    'register': 'Register',
-    'student_registration': 'Student Registration',
-    'details': 'Details',
-    'parents_info': 'Parents Info',
-    'parents_address': "Parents' Address",
-    'name': 'Name',
-    'family_name': 'Family Name',
-    'father_name': "Father's Name",
-    'mother_name': "Mother's Name",
-    'birth_date': 'Birth Date (dd/mm/yyyy)',
-    'birth_place': 'Place of Birth',
-    'id_card_number': 'ID Card Number',
-    'issuing_authority': 'Issuing Authority',
-    'university': 'University',
-    'department': 'Department of Study',
-    'year_of_study': 'Year of Study',
-    'has_other_degree': 'Having any other degree?',
-    'yes': 'Yes',
-    'no': 'No',
-    'email': 'Email',
-    'phone': 'Phone Number',
-    'tax_number': 'Tax Number (AFM)',
-    'father_job': "Father's Job",
-    'mother_job': "Mother's Job",
-    'address': 'Address',
-    'city': 'City',
-    'region': 'Region',
-    'postal_code': 'Postal Code',
-    'country': 'Country',
-    'number': 'Number',
-    'required': 'Required',
-    'select_birth_date': 'Select your birth date',
-    'registration_complete': 'Registration Complete',
-    'registration_submitted': 'Your registration has been submitted.',
-    'ok': 'OK',
-  },
-  'el': {
-    'register': 'Εγγραφή',
-    'student_registration': 'Εγγραφή Φοιτητή',
-    'details': 'Στοιχεία',
-    'parents_info': 'Στοιχεία Γονέων',
-    'parents_address': 'Διεύθυνση Γονέων',
-    'name': 'Όνομα',
-    'family_name': 'Επώνυμο',
-    'father_name': 'Όνομα Πατέρα',
-    'mother_name': 'Όνομα Μητέρας',
-    'birth_date': 'Ημερομηνία Γέννησης (ηη/μμ/εεεε)',
-    'birth_place': 'Τόπος Γέννησης',
-    'id_card_number': 'Αριθμός Ταυτότητας',
-    'issuing_authority': 'Αρχή Έκδοσης',
-    'university': 'Πανεπιστήμιο',
-    'department': 'Τμήμα Σπουδών',
-    'year_of_study': 'Έτος Σπουδών',
-    'has_other_degree': 'Διαθέτετε άλλο πτυχίο;',
-    'yes': 'Ναι',
-    'no': 'Όχι',
-    'email': 'Email',
-    'phone': 'Τηλέφωνο',
-    'tax_number': 'ΑΦΜ',
-    'father_job': 'Επάγγελμα Πατέρα',
-    'mother_job': 'Επάγγελμα Μητέρας',
-    'address': 'Διεύθυνση',
-    'city': 'Πόλη',
-    'region': 'Περιοχή',
-    'postal_code': 'Τ.Κ.',
-    'country': 'Χώρα',
-    'number': 'Αριθμός',
-    'required': 'Υποχρεωτικό',
-    'select_birth_date': 'Επιλέξτε ημερομηνία γέννησης',
-    'registration_complete': 'Η εγγραφή ολοκληρώθηκε',
-    'registration_submitted': 'Η εγγραφή σας υποβλήθηκε.',
-    'ok': 'OK',
-  },
-};
-String t(String lang, String key) => localizedStrings[lang]?[key] ?? key;
+String t(String lang, String key) => LocalizationService.t(lang, key);
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({Key? key}) : super(key: key);
@@ -130,8 +54,10 @@ class _RegistrationScreenState extends State<RegistrationScreen>
     });
 
     try {
-      print('DEBUG: Starting registration process...');
-      print('DEBUG: Form validation passed, attempting database insert...');
+      if (kDebugMode) {
+        debugPrint('Starting registration process...');
+        debugPrint('Form validation passed, attempting database insert...');
+      }
 
       // Security: Use sanitized data for database insertion
       final studentData = _sanitizeFormData();
@@ -142,23 +68,42 @@ class _RegistrationScreenState extends State<RegistrationScreen>
         throw Exception('Validation failed: ${validationErrors.join(', ')}');
       }
 
-      print('DEBUG: Student data to insert: $studentData');
+      if (kDebugMode) {
+        debugPrint('Student data to insert: $studentData');
+      }
+
+      // Check if Supabase is available by trying to access the client
+      try {
+        Supabase.instance.client;
+      } catch (e) {
+        throw Exception(
+          'Database not configured. Please set up your Supabase credentials.',
+        );
+      }
 
       // First try to test the connection
-      print('DEBUG: Testing database connection...');
+      if (kDebugMode) {
+        debugPrint('Testing database connection...');
+      }
       await Supabase.instance.client
           .from('students')
           .select('count')
           .limit(1)
           .timeout(const Duration(seconds: 10));
-      print('DEBUG: Database connection test successful');
+      if (kDebugMode) {
+        debugPrint('Database connection test successful');
+      }
 
-      print('DEBUG: Attempting to insert student data...');
+      if (kDebugMode) {
+        debugPrint('Attempting to insert student data...');
+      }
       final response = await Supabase.instance.client
           .from('students')
           .insert(studentData)
           .timeout(const Duration(seconds: 30));
-      print('DEBUG: Database insert successful: $response');
+      if (kDebugMode) {
+        debugPrint('Database insert successful: $response');
+      }
 
       if (!mounted) return;
 
@@ -166,29 +111,33 @@ class _RegistrationScreenState extends State<RegistrationScreen>
         _isLoading = false;
       });
 
-      print('DEBUG: Showing success dialog...');
+      if (kDebugMode) {
+        debugPrint('Showing success dialog...');
+      }
       showDialog(
         context: context,
         builder: (context) {
-          final locale = context.watch<LocaleNotifier>().locale;
+          final dialogLocale = context.watch<LocaleNotifier>().locale;
           return AlertDialog(
-            title: Text(t(locale, 'registration_complete')),
-            content: Text(t(locale, 'registration_submitted')),
+            title: Text(t(dialogLocale, 'registration_complete')),
+            content: Text(t(dialogLocale, 'registration_submitted')),
             actions: [
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
                   Navigator.pop(context); // Go back to main screen
                 },
-                child: Text(t(locale, 'ok')),
+                child: Text(t(dialogLocale, 'ok')),
               ),
             ],
           );
         },
       );
     } catch (error) {
-      print('DEBUG: Registration error occurred: $error');
-      print('DEBUG: Error type: ${error.runtimeType}');
+      if (kDebugMode) {
+        debugPrint('Registration error occurred: $error');
+        debugPrint('Error type: ${error.runtimeType}');
+      }
 
       if (!mounted) return;
 
@@ -199,40 +148,11 @@ class _RegistrationScreenState extends State<RegistrationScreen>
       _attemptCount++;
       _lastAttemptTime = DateTime.now();
 
-      String errorMessage = 'Registration failed: ';
-
-      if (error.toString().contains('522')) {
-        errorMessage +=
-            'Server connection error. Please try again or check your internet connection.';
-      } else if (error.toString().contains('401')) {
-        errorMessage += 'Authentication error. Please contact support.';
-      } else if (error.toString().contains('404')) {
-        errorMessage += 'Service not found. Please contact support.';
-      } else if (error.toString().contains('TimeoutException')) {
-        errorMessage +=
-            'Connection timeout (${ConfigService.longTimeout.inSeconds}s). Your internet may be slow. Please try again with a better connection, or contact support if this persists.';
-      } else if (error.toString().contains('Validation failed')) {
-        errorMessage +=
-            'Invalid data format. Please check your entries and try again.';
-      } else {
-        errorMessage += 'Unexpected error occurred. Please try again.';
-      }
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(errorMessage),
+          content: Text('Registration failed: $error'),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 8),
-          action: SnackBarAction(
-            label: 'Retry',
-            textColor: Colors.white,
-            onPressed: () {
-              if (_formKey.currentState!.validate()) {
-                _formKey.currentState!.save();
-                _registerStudent();
-              }
-            },
-          ),
+          duration: const Duration(seconds: 5),
         ),
       );
     }
@@ -252,7 +172,6 @@ class _RegistrationScreenState extends State<RegistrationScreen>
   }
 
   void _showRateLimitError() {
-    final locale = context.read<LocaleNotifier>().locale;
     final remainingTime =
         ConfigService.rateLimitWindow -
         DateTime.now().difference(_lastAttemptTime!);
@@ -346,302 +265,231 @@ class _RegistrationScreenState extends State<RegistrationScreen>
   @override
   Widget build(BuildContext context) {
     final locale = context.watch<LocaleNotifier>().locale;
-    final themeMode = context.watch<ThemeNotifier>().themeMode;
 
-    final theme = ThemeData(
-      brightness: themeMode == ThemeMode.dark
-          ? Brightness.dark
-          : Brightness.light,
-      colorSchemeSeed: Colors.teal,
-      useMaterial3: true,
-      cardTheme: CardThemeData(
-        elevation: 6,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        margin: const EdgeInsets.symmetric(vertical: 16, horizontal: 0),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+          tooltip: 'Back',
         ),
+        title: Text(t(locale, 'student_registration')),
       ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-      ),
-    );
-
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: theme,
-      darkTheme: theme.copyWith(brightness: Brightness.dark),
-      themeMode: themeMode,
-      locale: Locale(locale),
-      supportedLocales: const [Locale('en'), Locale('el')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      home: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.of(context).pop(),
-            tooltip: 'Back',
-          ),
-          title: Text(t(locale, 'student_registration')),
-        ),
-        body: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 700),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          child: SingleChildScrollView(
-            key: ValueKey(locale + themeMode.toString()),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Card(
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 700),
-                          curve: Curves.easeOutCubic,
-                          style: Theme.of(context).textTheme.titleLarge!,
-                          child: Text(t(locale, 'details')),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          locale,
-                          'name',
-                          (v) => _name = v,
-                          required: true,
-                        ),
-                        _buildTextField(
-                          locale,
-                          'family_name',
-                          (v) => _familyName = v,
-                          required: true,
-                        ),
-                        _buildTextField(
-                          locale,
-                          'father_name',
-                          (v) => _fatherName = v,
-                        ),
-                        _buildTextField(
-                          locale,
-                          'mother_name',
-                          (v) => _motherName = v,
-                        ),
-                        _buildBirthDatePicker(locale),
-                        _buildTextField(
-                          locale,
-                          'birth_place',
-                          (v) => _birthPlace = v,
-                        ),
-                        _buildTextField(
-                          locale,
-                          'id_card_number',
-                          (v) => _idCardNumber = v,
-                        ),
-                        _buildTextField(
-                          locale,
-                          'issuing_authority',
-                          (v) => _issuingAuthority = v,
-                        ),
-                        _buildTextField(
-                          locale,
-                          'university',
-                          (v) => _university = v,
-                        ),
-                        _buildTextField(
-                          locale,
-                          'department',
-                          (v) => _department = v,
-                        ),
-                        _buildTextField(
-                          locale,
-                          'year_of_study',
-                          (v) => _yearOfStudy = v,
-                        ),
-                        _buildDropdown(
-                          locale,
-                          'has_other_degree',
-                          (v) => _hasOtherDegree = v,
-                        ),
-                        _buildTextField(
-                          locale,
-                          'email',
-                          (v) => _email = v,
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        _buildTextField(
-                          locale,
-                          'phone',
-                          (v) => _phone = v,
-                          keyboardType: TextInputType.phone,
-                        ),
-                        _buildTextField(
-                          locale,
-                          'tax_number',
-                          (v) => _taxNumber = v,
-                          keyboardType: TextInputType.number,
-                        ),
-                        const SizedBox(height: 24),
-                        Divider(thickness: 1.5, height: 32),
-                        AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 700),
-                          curve: Curves.easeOutCubic,
-                          style: Theme.of(context).textTheme.titleLarge!,
-                          child: Text(t(locale, 'details')),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          locale,
-                          'father_job',
-                          (v) => _fatherJob = v,
-                        ),
-                        _buildTextField(
-                          locale,
-                          'mother_job',
-                          (v) => _motherJob = v,
-                        ),
-                        const SizedBox(height: 16),
-                        AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 700),
-                          curve: Curves.easeOutCubic,
-                          style: Theme.of(context).textTheme.titleLarge!,
-                          child: Text(t(locale, 'details')),
-                        ),
-                        _buildTextField(
-                          locale,
-                          'address',
-                          (v) => _parentAddress = v,
-                        ),
-                        _buildTextField(locale, 'city', (v) => _parentCity = v),
-                        _buildTextField(
-                          locale,
-                          'region',
-                          (v) => _parentRegion = v,
-                        ),
-                        _buildTextField(
-                          locale,
-                          'postal_code',
-                          (v) => _parentPostal = v,
-                        ),
-                        _buildTextField(
-                          locale,
-                          'country',
-                          (v) => _parentCountry = v,
-                        ),
-                        _buildTextField(
-                          locale,
-                          'number',
-                          (v) => _parentNumber = v,
-                        ),
-                        const SizedBox(height: 32),
-                        Center(
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 700),
-                            curve: Curves.easeOutCubic,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.primary.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: ElevatedButton(
-                              onPressed: _isLoading
-                                  ? null
-                                  : () {
-                                      print('DEBUG: Register button pressed');
-
-                                      // Security: Check rate limiting
-                                      if (_checkRateLimit()) {
-                                        _showRateLimitError();
-                                        return;
-                                      }
-
-                                      if (_formKey.currentState!.validate()) {
-                                        print('DEBUG: Form validation passed');
-                                        _formKey.currentState!.save();
-                                        print('DEBUG: Form data saved');
-
-                                        // Security: Additional validation on sanitized data
-                                        final sanitizedData =
-                                            _sanitizeFormData();
-                                        final validationErrors =
-                                            _validateSanitizedData(
-                                              sanitizedData,
-                                            );
-
-                                        if (validationErrors.isNotEmpty) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Validation errors: ${validationErrors.join(', ')}',
-                                              ),
-                                              backgroundColor: Colors.red,
-                                              duration: const Duration(
-                                                seconds: 5,
-                                              ),
-                                            ),
-                                          );
-                                          return;
-                                        }
-
-                                        print(
-                                          'DEBUG: Security validation passed',
-                                        );
-                                        print(
-                                          'DEBUG: Calling _registerStudent',
-                                        );
-                                        _registerStudent();
-                                      } else {
-                                        print('DEBUG: Form validation failed');
-                                      }
-                                    },
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 32,
-                                  vertical: 12,
-                                ),
-                                child: _isLoading
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
-                                        ),
-                                      )
-                                    : Text(t(locale, 'register')),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Details Section
+                    Text(
+                      t(locale, 'details'),
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      locale,
+                      'name',
+                      (v) => _name = v,
+                      required: true,
+                    ),
+                    _buildTextField(
+                      locale,
+                      'family_name',
+                      (v) => _familyName = v,
+                      required: true,
+                    ),
+                    _buildTextField(
+                      locale,
+                      'father_name',
+                      (v) => _fatherName = v,
+                    ),
+                    _buildTextField(
+                      locale,
+                      'mother_name',
+                      (v) => _motherName = v,
+                    ),
+                    _buildBirthDatePicker(locale),
+                    _buildTextField(
+                      locale,
+                      'birth_place',
+                      (v) => _birthPlace = v,
+                    ),
+                    _buildTextField(
+                      locale,
+                      'id_card_number',
+                      (v) => _idCardNumber = v,
+                    ),
+                    _buildTextField(
+                      locale,
+                      'issuing_authority',
+                      (v) => _issuingAuthority = v,
+                    ),
+                    _buildTextField(
+                      locale,
+                      'university',
+                      (v) => _university = v,
+                    ),
+                    _buildTextField(
+                      locale,
+                      'department',
+                      (v) => _department = v,
+                    ),
+                    _buildTextField(
+                      locale,
+                      'year_of_study',
+                      (v) => _yearOfStudy = v,
+                    ),
+                    _buildDropdown(
+                      locale,
+                      'has_other_degree',
+                      (v) => _hasOtherDegree = v,
+                    ),
+                    _buildTextField(
+                      locale,
+                      'email',
+                      (v) => _email = v,
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    _buildTextField(
+                      locale,
+                      'phone',
+                      (v) => _phone = v,
+                      keyboardType: TextInputType.phone,
+                    ),
+                    _buildTextField(
+                      locale,
+                      'tax_number',
+                      (v) => _taxNumber = v,
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 24),
+                    const Divider(thickness: 1.5, height: 32),
+
+                    // Parents Info Section
+                    Text(
+                      t(locale, 'parents_info'),
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      locale,
+                      'father_job',
+                      (v) => _fatherJob = v,
+                    ),
+                    _buildTextField(
+                      locale,
+                      'mother_job',
+                      (v) => _motherJob = v,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Parents Address Section
+                    Text(
+                      t(locale, 'parents_address'),
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      locale,
+                      'address',
+                      (v) => _parentAddress = v,
+                    ),
+                    _buildTextField(locale, 'city', (v) => _parentCity = v),
+                    _buildTextField(locale, 'region', (v) => _parentRegion = v),
+                    _buildTextField(
+                      locale,
+                      'postal_code',
+                      (v) => _parentPostal = v,
+                    ),
+                    _buildTextField(
+                      locale,
+                      'country',
+                      (v) => _parentCountry = v,
+                    ),
+                    _buildTextField(locale, 'number', (v) => _parentNumber = v),
+                    const SizedBox(height: 32),
+
+                    // Submit Button
+                    Center(
+                      child: ElevatedButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                                if (kDebugMode) {
+                                  debugPrint('Register button pressed');
+                                }
+
+                                // Security: Check rate limiting
+                                if (_checkRateLimit()) {
+                                  _showRateLimitError();
+                                  return;
+                                }
+
+                                if (_formKey.currentState!.validate()) {
+                                  if (kDebugMode) {
+                                    debugPrint('Form validation passed');
+                                  }
+                                  _formKey.currentState!.save();
+                                  if (kDebugMode) {
+                                    debugPrint('Form data saved');
+                                  }
+
+                                  // Security: Additional validation on sanitized data
+                                  final sanitizedData = _sanitizeFormData();
+                                  final validationErrors =
+                                      _validateSanitizedData(sanitizedData);
+
+                                  if (validationErrors.isNotEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Validation errors: ${validationErrors.join(', ')}',
+                                        ),
+                                        backgroundColor: Colors.red,
+                                        duration: const Duration(seconds: 5),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  if (kDebugMode) {
+                                    debugPrint('Security validation passed');
+                                    debugPrint('Calling _registerStudent');
+                                  }
+                                  _registerStudent();
+                                } else {
+                                  if (kDebugMode) {
+                                    debugPrint('Form validation failed');
+                                  }
+                                }
+                              },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 12,
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : Text(t(locale, 'register')),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -663,7 +511,6 @@ class _RegistrationScreenState extends State<RegistrationScreen>
       child: TextFormField(
         decoration: InputDecoration(labelText: t(locale, key)),
         keyboardType: keyboardType,
-
         validator: (v) {
           final locale = context.read<LocaleNotifier>().locale;
 
