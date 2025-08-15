@@ -174,37 +174,6 @@ flutter analyze
 | **PostgreSQL** | Relational database |
 | **Image Compression** | File optimization for uploads |
 
-## 🌐 Localization
-
-The app supports:
-- **English** (en) - Default language
-- **Greek** (el) - Full localization including forms, validation messages, and UI text
-
-Language can be changed dynamically through the UI, with preferences persisted locally.
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📞 Support
-
-For support, email [support@oikad.example] or create an issue on GitHub.
-
-## 🙏 Acknowledgments
-
-- Flutter team for the amazing framework
-- Supabase for the powerful backend services
-- Material Design team for the design system
-- The open-source community for various packages used
 
 ---
 
-**Built with ❤️ using Flutter and Supabase**
