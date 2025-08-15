@@ -99,7 +99,7 @@ OIKAD is a comprehensive dormitory registration system that streamlines the stud
 
 5. **Run the app**
    ```bash
-   flutter run
+   flutter run --dart-define-from-file=.env
    ```
 
 ## 📁 Project Structure
