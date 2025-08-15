@@ -171,11 +171,6 @@ class SanitizationService {
     return sanitized.trim().isEmpty ? null : sanitized;
   }
 
-  /// Rate limiting key generation for security
-  static String generateRateLimitKey(String identifier, String action) {
-    return 'rate_limit:${identifier.toLowerCase()}:$action';
-  }
-
   /// Validates file upload extensions (if needed for future features)
   static bool isAllowedFileExtension(
     String filename,

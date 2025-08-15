@@ -3,154 +3,206 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../notifiers.dart';
-import '../services/config_service.dart';
+
 import '../services/localization_service.dart';
 import '../services/sanitization_service.dart';
 import '../services/validation_service.dart';
+import '../services/auth_service.dart';
+import 'dashboard_screen.dart';
 
 String t(String lang, String key) => LocalizationService.t(lang, key);
 
 class RegistrationScreen extends StatefulWidget {
-  const RegistrationScreen({Key? key}) : super(key: key);
+  final bool isEditMode;
+
+  const RegistrationScreen({super.key, this.isEditMode = false});
 
   @override
   State<RegistrationScreen> createState() => _RegistrationScreenState();
 }
 
-class _RegistrationScreenState extends State<RegistrationScreen>
-    with TickerProviderStateMixin {
+class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Details section
-  String? _name,
-      _familyName,
-      _fatherName,
-      _motherName,
-      _birthPlace,
-      _idCardNumber,
-      _issuingAuthority;
-  String? _university, _department, _yearOfStudy, _email, _phone, _taxNumber;
+  // Form fields
+  String? _name;
+  String? _familyName;
+  String? _fatherName;
+  String? _motherName;
+  String? _birthPlace;
+  String? _idCardNumber;
+  String? _issuingAuthority;
+  String? _university;
+  String? _department;
+  String? _yearOfStudy;
+  String? _email;
+  String? _phone;
+  String? _taxNumber;
   bool? _hasOtherDegree;
-
-  // Parents info
-  String? _fatherJob, _motherJob;
-  String? _parentAddress,
-      _parentCity,
-      _parentRegion,
-      _parentPostal,
-      _parentCountry,
-      _parentNumber;
+  String? _fatherJob;
+  String? _motherJob;
+  String? _parentAddress;
+  String? _parentCity;
+  String? _parentRegion;
+  String? _parentPostal;
+  String? _parentCountry;
+  String? _parentNumber;
 
   bool _isLoading = false;
+  bool _isLoadingData = false;
   DateTime? _birthDate;
-  int _attemptCount = 0;
-  DateTime? _lastAttemptTime;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isEditMode) {
+      _loadExistingData();
+    }
+  }
+
+  Future<void> _loadExistingData() async {
+    if (!AuthService.isAuthenticated) {
+      return;
+    }
+
+    setState(() {
+      _isLoadingData = true;
+    });
+
+    try {
+      final existing = await Supabase.instance.client
+          .from('dormitory_students')
+          .select()
+          .eq('auth_user_id', AuthService.currentUserId!)
+          .maybeSingle();
+
+      if (existing != null && mounted) {
+        setState(() {
+          _name = existing['name'];
+          _familyName = existing['family_name'];
+          _fatherName = existing['father_name'];
+          _motherName = existing['mother_name'];
+          _birthPlace = existing['birth_place'];
+          _idCardNumber = existing['id_card_number'];
+          _issuingAuthority = existing['issuing_authority'];
+          _university = existing['university'];
+          _department = existing['department'];
+          _yearOfStudy = existing['year_of_study'];
+          _email = existing['email'];
+          _phone = existing['phone'];
+          _taxNumber = existing['tax_number'];
+          _hasOtherDegree = existing['has_other_degree'];
+          _fatherJob = existing['father_job'];
+          _motherJob = existing['mother_job'];
+          _parentAddress = existing['parent_address'];
+          _parentCity = existing['parent_city'];
+          _parentRegion = existing['parent_region'];
+          _parentPostal = existing['parent_postal'];
+          _parentCountry = existing['parent_country'];
+          _parentNumber = existing['parent_phone'];
+
+          if (existing['birth_date'] != null) {
+            _birthDate = DateTime.parse(existing['birth_date']);
+          }
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error loading existing registration data: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingData = false;
+        });
+      }
+    }
+  }
 
   Future<void> _registerStudent() async {
     if (!mounted) return;
+
+    if (!AuthService.isAuthenticated) {
+      final locale = context.read<LocaleNotifier>().locale;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(t(locale, 'please_login_first')),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      if (kDebugMode) {
-        debugPrint('Starting registration process...');
-        debugPrint('Form validation passed, attempting database insert...');
-      }
-
-      // Security: Use sanitized data for database insertion
       final studentData = _sanitizeFormData();
-
-      // Security: Final validation before database insertion
       final validationErrors = _validateSanitizedData(studentData);
+
       if (validationErrors.isNotEmpty) {
         throw Exception('Validation failed: ${validationErrors.join(', ')}');
       }
 
-      if (kDebugMode) {
-        debugPrint('Student data to insert: $studentData');
-      }
+      studentData['auth_user_id'] = AuthService.currentUserId;
 
-      // Check if Supabase is available by trying to access the client
-      try {
-        Supabase.instance.client;
-      } catch (e) {
-        throw Exception(
-          'Database not configured. Please set up your Supabase credentials.',
-        );
-      }
+      final existing = await Supabase.instance.client
+          .from('dormitory_students')
+          .select('id')
+          .eq('auth_user_id', AuthService.currentUserId!)
+          .maybeSingle();
 
-      // First try to test the connection
-      if (kDebugMode) {
-        debugPrint('Testing database connection...');
-      }
-      await Supabase.instance.client
-          .from('students')
-          .select('count')
-          .limit(1)
-          .timeout(const Duration(seconds: 10));
-      if (kDebugMode) {
-        debugPrint('Database connection test successful');
-      }
-
-      if (kDebugMode) {
-        debugPrint('Attempting to insert student data...');
-      }
-      final response = await Supabase.instance.client
-          .from('students')
-          .insert(studentData)
-          .timeout(const Duration(seconds: 30));
-      if (kDebugMode) {
-        debugPrint('Database insert successful: $response');
+      if (existing != null) {
+        await Supabase.instance.client
+            .from('dormitory_students')
+            .update({
+              ...studentData,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('auth_user_id', AuthService.currentUserId!)
+            .timeout(const Duration(seconds: 30));
+      } else {
+        await Supabase.instance.client
+            .from('dormitory_students')
+            .insert(studentData)
+            .timeout(const Duration(seconds: 30));
       }
 
       if (!mounted) return;
+
+      if (_isCompleteSubmission()) {
+        context.read<CompletionNotifier>().markRegistrationCompleted();
+      }
 
       setState(() {
         _isLoading = false;
       });
 
-      if (kDebugMode) {
-        debugPrint('Showing success dialog...');
-      }
-      showDialog(
-        context: context,
-        builder: (context) {
-          final dialogLocale = context.watch<LocaleNotifier>().locale;
-          return AlertDialog(
-            title: Text(t(dialogLocale, 'registration_complete')),
-            content: Text(t(dialogLocale, 'registration_submitted')),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pop(context); // Go back to main screen
-                },
-                child: Text(t(dialogLocale, 'ok')),
-              ),
-            ],
-          );
-        },
-      );
-    } catch (error) {
-      if (kDebugMode) {
-        debugPrint('Registration error occurred: $error');
-        debugPrint('Error type: ${error.runtimeType}');
-      }
-
-      if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-      });
-
-      _attemptCount++;
-      _lastAttemptTime = DateTime.now();
-
+      final locale = context.read<LocaleNotifier>().locale;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Registration failed: $error'),
+          content: Text(t(locale, 'registration_saved_successfully')),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        (route) => false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      final locale = context.read<LocaleNotifier>().locale;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${t(locale, 'registration_failed')}: $error'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 5),
         ),
@@ -158,43 +210,23 @@ class _RegistrationScreenState extends State<RegistrationScreen>
     }
   }
 
-  // Security: Rate limiting check
-  bool _checkRateLimit() {
-    if (_attemptCount >= ConfigService.maxRegistrationAttempts) {
-      if (_lastAttemptTime != null) {
-        final timeSinceLastAttempt = DateTime.now().difference(
-          _lastAttemptTime!,
-        );
-        return timeSinceLastAttempt < ConfigService.rateLimitWindow;
-      }
-    }
-    return false;
+  bool _isCompleteSubmission() {
+    return _name?.trim().isNotEmpty == true &&
+        _familyName?.trim().isNotEmpty == true &&
+        _email?.trim().isNotEmpty == true &&
+        _phone?.trim().isNotEmpty == true &&
+        _university?.trim().isNotEmpty == true &&
+        _department?.trim().isNotEmpty == true &&
+        _birthDate != null;
   }
 
-  void _showRateLimitError() {
-    final remainingTime =
-        ConfigService.rateLimitWindow -
-        DateTime.now().difference(_lastAttemptTime!);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Too many attempts. Please wait ${remainingTime.inMinutes} minutes before trying again.',
-        ),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 8),
-      ),
-    );
-  }
-
-  // Security: Sanitize form data
   Map<String, dynamic> _sanitizeFormData() {
     return {
       'name': SanitizationService.sanitizeName(_name),
       'family_name': SanitizationService.sanitizeName(_familyName),
       'father_name': SanitizationService.sanitizeName(_fatherName),
       'mother_name': SanitizationService.sanitizeName(_motherName),
-      'birth_date': _birthDate?.toIso8601String(),
+      'birth_date': _birthDate?.toIso8601String().split('T')[0],
       'birth_place': SanitizationService.sanitizeAddress(_birthPlace),
       'id_card_number': SanitizationService.sanitizeAlphanumeric(_idCardNumber),
       'issuing_authority': SanitizationService.sanitizeInstitution(
@@ -203,7 +235,7 @@ class _RegistrationScreenState extends State<RegistrationScreen>
       'university': SanitizationService.sanitizeInstitution(_university),
       'department': SanitizationService.sanitizeInstitution(_department),
       'year_of_study': _yearOfStudy,
-      'has_other_degree': _hasOtherDegree,
+      'has_other_degree': _hasOtherDegree ?? false,
       'email': SanitizationService.sanitizeEmail(_email),
       'phone': SanitizationService.sanitizePhone(_phone),
       'tax_number': SanitizationService.sanitizeNumeric(_taxNumber),
@@ -219,17 +251,21 @@ class _RegistrationScreenState extends State<RegistrationScreen>
       'parent_city': SanitizationService.sanitizeAddress(_parentCity),
       'parent_region': SanitizationService.sanitizeAddress(_parentRegion),
       'parent_postal': SanitizationService.sanitizeNumeric(_parentPostal),
-      'parent_country': SanitizationService.sanitizeAddress(_parentCountry),
-      'parent_number': SanitizationService.sanitizeNumeric(_parentNumber),
+      'parent_country':
+          SanitizationService.sanitizeAddress(_parentCountry) ?? 'Greece',
+      'parent_phone': SanitizationService.sanitizeNumeric(_parentNumber),
+      'application_status': _isCompleteSubmission() ? 'submitted' : 'draft',
+      'terms_accepted': true,
+      'privacy_policy_accepted': true,
+      'data_processing_consent': true,
+      'consent_date': DateTime.now().toIso8601String(),
     };
   }
 
-  // Security: Validate sanitized data
   List<String> _validateSanitizedData(Map<String, dynamic> data) {
     final locale = context.read<LocaleNotifier>().locale;
     final errors = <String>[];
 
-    // Check for required fields after sanitization
     if (data['name'] == null || data['name'].toString().isEmpty) {
       errors.add('Name is required');
     }
@@ -240,7 +276,6 @@ class _RegistrationScreenState extends State<RegistrationScreen>
       errors.add('Email is required');
     }
 
-    // Validate data integrity
     if (data['email'] != null) {
       final emailError = ValidationService.validateEmail(data['email'], locale);
       if (emailError != null) errors.add(emailError);
@@ -266,14 +301,18 @@ class _RegistrationScreenState extends State<RegistrationScreen>
   Widget build(BuildContext context) {
     final locale = context.watch<LocaleNotifier>().locale;
 
+    if (_isLoadingData) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
-          tooltip: 'Back',
+          tooltip: t(locale, 'back'),
         ),
-        title: Text(t(locale, 'student_registration')),
+        title: Text(t(locale, 'dormitory_registration')),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -286,64 +325,78 @@ class _RegistrationScreenState extends State<RegistrationScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Details Section
                     Text(
                       t(locale, 'details'),
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : null,
+                      ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     _buildTextField(
                       locale,
                       'name',
                       (v) => _name = v,
+                      initialValue: _name,
                       required: true,
                     ),
                     _buildTextField(
                       locale,
                       'family_name',
                       (v) => _familyName = v,
+                      initialValue: _familyName,
                       required: true,
                     ),
                     _buildTextField(
                       locale,
                       'father_name',
                       (v) => _fatherName = v,
+                      initialValue: _fatherName,
                     ),
                     _buildTextField(
                       locale,
                       'mother_name',
                       (v) => _motherName = v,
+                      initialValue: _motherName,
                     ),
                     _buildBirthDatePicker(locale),
                     _buildTextField(
                       locale,
                       'birth_place',
                       (v) => _birthPlace = v,
+                      initialValue: _birthPlace,
                     ),
                     _buildTextField(
                       locale,
                       'id_card_number',
                       (v) => _idCardNumber = v,
+                      initialValue: _idCardNumber,
                     ),
                     _buildTextField(
                       locale,
                       'issuing_authority',
                       (v) => _issuingAuthority = v,
+                      initialValue: _issuingAuthority,
                     ),
                     _buildTextField(
                       locale,
                       'university',
                       (v) => _university = v,
+                      initialValue: _university,
                     ),
                     _buildTextField(
                       locale,
                       'department',
                       (v) => _department = v,
+                      initialValue: _department,
                     ),
                     _buildTextField(
                       locale,
                       'year_of_study',
                       (v) => _yearOfStudy = v,
+                      initialValue: _yearOfStudy,
                     ),
                     _buildDropdown(
                       locale,
@@ -354,139 +407,138 @@ class _RegistrationScreenState extends State<RegistrationScreen>
                       locale,
                       'email',
                       (v) => _email = v,
+                      initialValue: _email,
                       keyboardType: TextInputType.emailAddress,
                     ),
                     _buildTextField(
                       locale,
                       'phone',
                       (v) => _phone = v,
+                      initialValue: _phone,
                       keyboardType: TextInputType.phone,
                     ),
                     _buildTextField(
                       locale,
                       'tax_number',
                       (v) => _taxNumber = v,
+                      initialValue: _taxNumber,
                       keyboardType: TextInputType.number,
                     ),
-                    const SizedBox(height: 24),
-                    const Divider(thickness: 1.5, height: 32),
 
-                    // Parents Info Section
+                    const SizedBox(height: 24),
+                    const Divider(thickness: 1.5, height: 24),
+
                     Text(
                       t(locale, 'parents_info'),
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : null,
+                      ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     _buildTextField(
                       locale,
                       'father_job',
                       (v) => _fatherJob = v,
+                      initialValue: _fatherJob,
                     ),
                     _buildTextField(
                       locale,
                       'mother_job',
                       (v) => _motherJob = v,
+                      initialValue: _motherJob,
                     ),
-                    const SizedBox(height: 16),
 
-                    // Parents Address Section
+                    const SizedBox(height: 12),
                     Text(
                       t(locale, 'parents_address'),
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : null,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     _buildTextField(
                       locale,
                       'address',
                       (v) => _parentAddress = v,
+                      initialValue: _parentAddress,
                     ),
-                    _buildTextField(locale, 'city', (v) => _parentCity = v),
-                    _buildTextField(locale, 'region', (v) => _parentRegion = v),
+                    _buildTextField(
+                      locale,
+                      'city',
+                      (v) => _parentCity = v,
+                      initialValue: _parentCity,
+                    ),
+                    _buildTextField(
+                      locale,
+                      'region',
+                      (v) => _parentRegion = v,
+                      initialValue: _parentRegion,
+                    ),
                     _buildTextField(
                       locale,
                       'postal_code',
                       (v) => _parentPostal = v,
+                      initialValue: _parentPostal,
                     ),
                     _buildTextField(
                       locale,
                       'country',
                       (v) => _parentCountry = v,
+                      initialValue: _parentCountry,
                     ),
-                    _buildTextField(locale, 'number', (v) => _parentNumber = v),
-                    const SizedBox(height: 32),
+                    _buildTextField(
+                      locale,
+                      'number',
+                      (v) => _parentNumber = v,
+                      initialValue: _parentNumber,
+                    ),
 
-                    // Submit Button
-                    Center(
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
                       child: ElevatedButton(
                         onPressed: _isLoading
                             ? null
                             : () {
-                                if (kDebugMode) {
-                                  debugPrint('Register button pressed');
-                                }
-
-                                // Security: Check rate limiting
-                                if (_checkRateLimit()) {
-                                  _showRateLimitError();
-                                  return;
-                                }
-
                                 if (_formKey.currentState!.validate()) {
-                                  if (kDebugMode) {
-                                    debugPrint('Form validation passed');
-                                  }
                                   _formKey.currentState!.save();
-                                  if (kDebugMode) {
-                                    debugPrint('Form data saved');
-                                  }
-
-                                  // Security: Additional validation on sanitized data
-                                  final sanitizedData = _sanitizeFormData();
-                                  final validationErrors =
-                                      _validateSanitizedData(sanitizedData);
-
-                                  if (validationErrors.isNotEmpty) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Validation errors: ${validationErrors.join(', ')}',
-                                        ),
-                                        backgroundColor: Colors.red,
-                                        duration: const Duration(seconds: 5),
-                                      ),
-                                    );
-                                    return;
-                                  }
-
-                                  if (kDebugMode) {
-                                    debugPrint('Security validation passed');
-                                    debugPrint('Calling _registerStudent');
-                                  }
                                   _registerStudent();
-                                } else {
-                                  if (kDebugMode) {
-                                    debugPrint('Form validation failed');
-                                  }
                                 }
                               },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 32,
-                            vertical: 12,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFF64B5F6)
+                              : Theme.of(context).primaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
-                                  ),
-                                )
-                              : Text(t(locale, 'register')),
                         ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                t(locale, 'submit'),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                       ),
                     ),
                   ],
@@ -503,97 +555,81 @@ class _RegistrationScreenState extends State<RegistrationScreen>
     String locale,
     String key,
     Function(String?) onSaved, {
-    bool required = false,
+    String? initialValue,
     TextInputType keyboardType = TextInputType.text,
+    bool required = false,
   }) {
+    // Get localized field labels
+    String getFieldLabel(String key) {
+      final locale = context.read<LocaleNotifier>().locale;
+      return t(locale, key);
+    }
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: TextFormField(
-        decoration: InputDecoration(labelText: t(locale, key)),
+        initialValue: initialValue,
+        decoration: InputDecoration(
+          labelText: getFieldLabel(key),
+          labelStyle: TextStyle(
+            fontWeight: FontWeight.w500,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white70
+                : null,
+          ),
+        ),
         keyboardType: keyboardType,
         validator: (v) {
-          final locale = context.read<LocaleNotifier>().locale;
-
-          // Required field validation
-          if (required) {
-            final requiredError = ValidationService.validateRequired(
-              v,
-              key,
-              locale,
-            );
-            if (requiredError != null) return requiredError;
+          if (required && (v == null || v.trim().isEmpty)) {
+            final locale = context.read<LocaleNotifier>().locale;
+            return '${getFieldLabel(key)} ${t(locale, 'required')}';
           }
-
-          // Field-specific validation
-          if (key == 'name' ||
-              key == 'family_name' ||
-              key == 'father_name' ||
-              key == 'mother_name') {
-            return ValidationService.validateName(v, locale);
-          } else if (key == 'email') {
-            return ValidationService.validateEmail(v, locale);
-          } else if (key == 'phone') {
-            return ValidationService.validatePhone(v, locale);
-          } else if (key == 'tax_number') {
-            return ValidationService.validateTaxNumber(v, locale);
-          } else if (key == 'id_card_number') {
-            return ValidationService.validateIdCard(v, locale);
-          } else if (key == 'postal_code') {
-            return ValidationService.validatePostalCode(v, locale);
-          }
-
           return null;
         },
-        onSaved: (v) {
-          // Sanitize input before saving
-          String? sanitized;
-          if (key == 'name' ||
-              key == 'family_name' ||
-              key == 'father_name' ||
-              key == 'mother_name') {
-            sanitized = SanitizationService.sanitizeName(v);
-          } else if (key == 'email') {
-            sanitized = SanitizationService.sanitizeEmail(v);
-          } else if (key == 'phone') {
-            sanitized = SanitizationService.sanitizePhone(v);
-          } else if (key == 'tax_number' ||
-              key == 'postal_code' ||
-              key == 'number') {
-            sanitized = SanitizationService.sanitizeNumeric(v);
-          } else if (key == 'id_card_number') {
-            sanitized = SanitizationService.sanitizeAlphanumeric(v);
-          } else if (key == 'university' ||
-              key == 'department' ||
-              key == 'issuing_authority') {
-            sanitized = SanitizationService.sanitizeInstitution(v);
-          } else if (key == 'address' ||
-              key == 'city' ||
-              key == 'region' ||
-              key == 'country' ||
-              key == 'birth_place') {
-            sanitized = SanitizationService.sanitizeAddress(v);
-          } else {
-            sanitized = SanitizationService.sanitizeGeneral(
-              v,
-              maxLength: ConfigService.maxInputLength,
-            );
-          }
-          onSaved(sanitized);
-        },
+        onSaved: onSaved,
       ),
     );
   }
 
   Widget _buildDropdown(String locale, String key, Function(bool?) onSaved) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: DropdownButtonFormField<bool>(
-        decoration: InputDecoration(labelText: t(locale, key)),
+        decoration: InputDecoration(
+          labelText: t(locale, 'has_other_degree'),
+          labelStyle: TextStyle(
+            fontWeight: FontWeight.w500,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white70
+                : null,
+          ),
+        ),
+        value: _hasOtherDegree,
         items: [
-          DropdownMenuItem(value: true, child: Text(t(locale, 'yes'))),
-          DropdownMenuItem(value: false, child: Text(t(locale, 'no'))),
+          DropdownMenuItem(
+            value: true,
+            child: Text(
+              t(locale, 'yes'),
+              style: TextStyle(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white
+                    : null,
+              ),
+            ),
+          ),
+          DropdownMenuItem(
+            value: false,
+            child: Text(
+              t(locale, 'no'),
+              style: TextStyle(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white
+                    : null,
+              ),
+            ),
+          ),
         ],
-        onChanged: (v) => onSaved(v),
+        onChanged: (v) => setState(() => _hasOtherDegree = v),
         onSaved: onSaved,
       ),
     );
@@ -601,7 +637,7 @@ class _RegistrationScreenState extends State<RegistrationScreen>
 
   Widget _buildBirthDatePicker(String locale) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: GestureDetector(
         onTap: () async {
           final picked = await showDatePicker(
@@ -621,22 +657,13 @@ class _RegistrationScreenState extends State<RegistrationScreen>
             decoration: InputDecoration(
               labelText: t(locale, 'birth_date'),
               hintText: t(locale, 'select_birth_date'),
+              labelStyle: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white70
+                    : null,
+              ),
             ),
-            validator: (value) {
-              if (_birthDate == null) return t(locale, 'required');
-              final dateError = ValidationService.validateDateNotFuture(
-                _birthDate,
-                locale,
-              );
-              if (dateError != null) return dateError;
-              final ageError = ValidationService.validateAge(
-                _birthDate,
-                16,
-                locale,
-              );
-              if (ageError != null) return ageError;
-              return null;
-            },
             controller: TextEditingController(
               text: _birthDate == null
                   ? ''

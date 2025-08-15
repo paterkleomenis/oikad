@@ -49,8 +49,9 @@ class ConfigService {
 
   static String get secureSupabaseAnonKey {
     if (supabaseAnonKey.isNotEmpty) return supabaseAnonKey;
-    if (!isProduction && kDebugMode && isDevConfigValid)
+    if (!isProduction && kDebugMode && isDevConfigValid) {
       return devSupabaseAnonKey;
+    }
     throw Exception(
       'SECURITY ERROR: Supabase API key not configured. Set SUPABASE_ANON_KEY environment variable.',
     );
@@ -68,14 +69,6 @@ class ConfigService {
   );
 
   // Security configuration
-  static const int maxRegistrationAttempts = int.fromEnvironment(
-    'MAX_REGISTRATION_ATTEMPTS',
-    defaultValue: 3,
-  );
-
-  static const Duration rateLimitWindow = Duration(
-    minutes: int.fromEnvironment('RATE_LIMIT_MINUTES', defaultValue: 15),
-  );
 
   static const int maxInputLength = int.fromEnvironment(
     'MAX_INPUT_LENGTH',
@@ -120,8 +113,6 @@ class ConfigService {
       'configValid': isConfigValid,
       'urlConfigured': supabaseUrl.isNotEmpty,
       'keyConfigured': supabaseAnonKey.isNotEmpty,
-      'maxAttempts': maxRegistrationAttempts,
-      'rateLimitMinutes': rateLimitWindow.inMinutes,
     };
   }
 }

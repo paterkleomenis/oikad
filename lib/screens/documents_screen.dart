@@ -1,0 +1,727 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../notifiers.dart';
+import '../services/localization_service.dart';
+import '../services/document_service.dart';
+import '../services/auth_service.dart';
+import '../services/image_processing_service.dart';
+import '../services/text_utils.dart';
+import 'welcome_screen.dart';
+
+class DocumentsScreen extends StatefulWidget {
+  const DocumentsScreen({super.key});
+
+  @override
+  State<DocumentsScreen> createState() => _DocumentsScreenState();
+}
+
+class _DocumentsScreenState extends State<DocumentsScreen> {
+  // Document type selection
+  String? _selectedDocumentType; // 'id' or 'passport'
+
+  // File uploads
+  PlatformFile? _studentPhoto;
+  PlatformFile? _idFrontPhoto;
+  PlatformFile? _passportPhoto;
+  PlatformFile? _idBackPhoto;
+  PlatformFile? _medicalCertificateFile;
+
+  // Consent
+  bool _consentAccepted = false;
+
+  bool _isLoading = false;
+  bool _isLoadingData = true;
+
+  String t(String locale, String key) => LocalizationService.t(locale, key);
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthentication();
+    _initializeData();
+    _loadExistingDocuments();
+  }
+
+  Future<void> _checkAuthentication() async {
+    if (!AuthService.isAuthenticated) {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+        );
+      }
+    }
+  }
+
+  Future<void> _initializeData() async {
+    try {
+      final categories = await DocumentService.getDocumentCategories();
+      if (kDebugMode) {
+        debugPrint('Loaded ${categories.length} document categories');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error initializing documents screen: $e');
+      }
+    }
+  }
+
+  Future<void> _loadExistingDocuments() async {
+    if (!AuthService.isAuthenticated) {
+      setState(() {
+        _isLoadingData = false;
+      });
+      return;
+    }
+
+    try {
+      // Load existing document submission data
+      // This would need to be implemented in DocumentService to load existing submissions
+      // For now, just mark as loading complete
+
+      // Check if there are existing documents and set checkboxes accordingly
+      // This is a placeholder - you'd need to implement the actual loading logic
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error loading existing documents: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingData = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _launchPrivacyPolicy() async {
+    final locale = context.read<LocaleNotifier>().locale;
+    final url = t(locale, 'privacy_policy_link');
+
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error launching privacy policy URL: $e');
+      }
+    }
+  }
+
+  Future<void> _pickFile(String fileType) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+        allowMultiple: false,
+        withData: true,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+
+        // Validate file
+        final validation = ImageProcessingService.validateFileForUpload(file);
+        if (!validation['valid']) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(validation['message']),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          return;
+        }
+
+        setState(() {
+          switch (fileType) {
+            case 'student_photo':
+              _studentPhoto = file;
+              break;
+            case 'id_front':
+              _idFrontPhoto = file;
+              break;
+            case 'passport':
+              _passportPhoto = file;
+              break;
+            case 'id_back':
+              _idBackPhoto = file;
+              break;
+            case 'medical_certificate':
+              _medicalCertificateFile = file;
+              break;
+          }
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error picking file: $e');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error selecting file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+
+
+  Future<void> _saveDocuments({bool isDraft = false}) async {
+    final locale = context.read<LocaleNotifier>().locale;
+
+    if (!isDraft && !_consentAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(t(locale, 'consent_required')),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      if (!AuthService.isAuthenticated) {
+        throw Exception('User not authenticated');
+      }
+
+      final currentUserId = AuthService.currentUserId!;
+
+      List<Map<String, dynamic>> uploadedFiles = [];
+
+      // Upload student photo
+      if (_studentPhoto != null) {
+        final result = await DocumentService.uploadDocument(
+          studentId: currentUserId,
+          categoryKey: 'student_photo',
+          file: _studentPhoto!,
+        );
+        uploadedFiles.add(result);
+      }
+
+      // Upload ID front photo
+      if (_idFrontPhoto != null) {
+        final result = await DocumentService.uploadDocument(
+          studentId: currentUserId,
+          categoryKey: 'id_front',
+          file: _idFrontPhoto!,
+        );
+        uploadedFiles.add(result);
+      }
+
+      // Upload passport photo
+      if (_passportPhoto != null) {
+        final result = await DocumentService.uploadDocument(
+          studentId: currentUserId,
+          categoryKey: 'passport',
+          file: _passportPhoto!,
+        );
+        uploadedFiles.add(result);
+      }
+
+      // Upload ID back photo
+      if (_idBackPhoto != null) {
+        final result = await DocumentService.uploadDocument(
+          studentId: currentUserId,
+          categoryKey: 'id_back',
+          file: _idBackPhoto!,
+        );
+        uploadedFiles.add(result);
+      }
+
+      // Upload medical certificate
+      if (_medicalCertificateFile != null) {
+        final result = await DocumentService.uploadDocument(
+          studentId: currentUserId,
+          categoryKey: 'medical_certificate',
+          file: _medicalCertificateFile!,
+        );
+        uploadedFiles.add(result);
+      }
+
+      // Get category IDs for selected documents
+      List<int> selectedCategoryIds = [];
+      final categories = await DocumentService.getDocumentCategories();
+
+      for (final category in categories) {
+        final categoryKey = category['category_key'];
+        bool isSelected = false;
+
+        switch (categoryKey) {
+          case 'student_photo':
+            isSelected = _studentPhoto != null;
+            break;
+          case 'id_front':
+          case 'passport':
+          case 'id_back':
+            isSelected = true; // Always allow upload
+            break;
+          case 'medical_certificate':
+            isSelected = true; // Always allow upload
+            break;
+          case 'health_card':
+            isSelected = true; // Always allow upload
+            break;
+        }
+
+        if (isSelected) {
+          selectedCategoryIds.add(category['id']);
+        }
+      }
+
+      // Create document submission
+      await DocumentService.createDocumentSubmission(
+        studentId: currentUserId,
+        consentAccepted: _consentAccepted,
+        consentText: t(locale, 'consent_declaration'),
+        selectedCategoryIds: selectedCategoryIds,
+      );
+
+      // Only mark documents as completed if this is a submission (not draft) and we have essential documents
+      if (mounted && !isDraft && _isDocumentsComplete()) {
+        context.read<CompletionNotifier>().markDocumentsCompleted();
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(t(locale, 'documents_saved')),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Go back to main screen
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error saving documents: $e');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving documents: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Check if documents are complete enough to be marked as completed
+  bool _isDocumentsComplete() {
+    // Check if we have at least the essential documents
+    bool hasIdentityDocument = false;
+
+    if (_selectedDocumentType == 'id') {
+      hasIdentityDocument = _idFrontPhoto != null && _idBackPhoto != null;
+    } else if (_selectedDocumentType == 'passport') {
+      hasIdentityDocument = _passportPhoto != null;
+    }
+
+    return _studentPhoto != null && hasIdentityDocument && _consentAccepted;
+  }
+
+  Widget _buildThumbnailPreview(PlatformFile? file) {
+    if (file == null) return const SizedBox.shrink();
+
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withOpacity(0.3)
+              : Colors.grey.shade300,
+        ),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: file.bytes != null && ImageProcessingService.isImageFile(file)
+            ? Image.memory(
+                file.bytes!,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(Icons.image, size: 20);
+                },
+              )
+            : Icon(
+                ImageProcessingService.isPdfFile(file)
+                    ? Icons.picture_as_pdf
+                    : Icons.insert_drive_file,
+                size: 20,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white70
+                    : Colors.grey.shade600,
+              ),
+      ),
+    );
+  }
+
+  Widget _buildFileUpload(
+    String locale,
+    String label,
+    String fileType,
+    PlatformFile? currentFile,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : null,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withOpacity(0.3)
+                  : Colors.grey.shade300,
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              ElevatedButton(
+                onPressed: () => _pickFile(fileType),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF64B5F6)
+                      : Theme.of(context).primaryColor,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  'Choose File',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  currentFile != null
+                      ? TextUtils.formatFileName(currentFile.name)
+                      : t(locale, 'no_file_selected'),
+                  style: TextStyle(
+                    color: currentFile != null
+                        ? Theme.of(context).colorScheme.onSurface
+                        : Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              _buildThumbnailPreview(currentFile),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = context.watch<LocaleNotifier>().locale;
+
+    if (_isLoadingData) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+          tooltip: t(locale, 'back'),
+        ),
+        title: Text(t(locale, 'document_upload')),
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // File Uploads Section
+                  Text(
+                    t(locale, 'upload_documents'),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : null,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  _buildFileUpload(
+                    locale,
+                    t(locale, 'student_photo'),
+                    'student_photo',
+                    _studentPhoto,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Document Type Selection
+                  Text(
+                    t(locale, 'select_identity_document'),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : null,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Radio buttons for document type
+                  Column(
+                    children: [
+                      RadioListTile<String>(
+                        title: Text(
+                          t(locale, 'id_card_front_back'),
+                          style: TextStyle(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white
+                                : null,
+                          ),
+                        ),
+                        value: 'id',
+                        groupValue: _selectedDocumentType,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedDocumentType = value;
+                            // Clear passport if switching to ID
+                            if (value == 'id') {
+                              _passportPhoto = null;
+                            }
+                          });
+                        },
+                        activeColor: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF64B5F6)
+                            : Theme.of(context).primaryColor,
+                      ),
+                      RadioListTile<String>(
+                        title: Text(
+                          t(locale, 'passport_document'),
+                          style: TextStyle(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white
+                                : null,
+                          ),
+                        ),
+                        value: 'passport',
+                        groupValue: _selectedDocumentType,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedDocumentType = value;
+                            // Clear ID photos if switching to passport
+                            if (value == 'passport') {
+                              _idFrontPhoto = null;
+                              _idBackPhoto = null;
+                            }
+                          });
+                        },
+                        activeColor: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF64B5F6)
+                            : Theme.of(context).primaryColor,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // ID Card uploads (only show if ID is selected)
+                  if (_selectedDocumentType == 'id') ...[
+                    _buildFileUpload(
+                      locale,
+                      t(locale, 'id_front'),
+                      'id_front',
+                      _idFrontPhoto,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildFileUpload(
+                      locale,
+                      t(locale, 'id_back'),
+                      'id_back',
+                      _idBackPhoto,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // Passport upload (only show if passport is selected)
+                  if (_selectedDocumentType == 'passport') ...[
+                    _buildFileUpload(
+                      locale,
+                      t(locale, 'passport_photo'),
+                      'passport',
+                      _passportPhoto,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  _buildFileUpload(
+                    locale,
+                    t(locale, 'medical_certificate'),
+                    'medical_certificate',
+                    _medicalCertificateFile,
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Consent Section
+                  Text(
+                    t(locale, 'consent_accepted'),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : null,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Checkbox(
+                        value: _consentAccepted,
+                        onChanged: (value) {
+                          setState(() {
+                            _consentAccepted = value ?? false;
+                          });
+                        },
+                        activeColor: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF64B5F6)
+                            : Theme.of(context).primaryColor,
+                        checkColor: Colors.white,
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 12),
+                            RichText(
+                              text: TextSpan(
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.white70
+                                      : null,
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: locale == 'el'
+                                        ? 'Δηλώνω ότι έχω διαβάσει και αποδέχομαι τους όρους και προϋποθέσεις για την υποβολή εγγράφων και την επεξεργασία δεδομένων.'
+                                        : 'I declare that I have read and accept the terms and conditions for document submission and data processing.',
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            InkWell(
+                              onTap: _launchPrivacyPolicy,
+                              child: Text(
+                                'Νόμος 4624/2019 (GDPR) - Κλικ εδώ για περισσότερες πληροφορίες',
+                                style: TextStyle(
+                                  color:
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? const Color(0xFF64B5F6)
+                                      : Theme.of(context).primaryColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Submit Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () => _saveDocuments(isDraft: false),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF64B5F6)
+                            : Theme.of(context).primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : Text(
+                              t(locale, 'submit'),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

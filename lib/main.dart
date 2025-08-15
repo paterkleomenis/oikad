@@ -3,9 +3,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'notifiers.dart';
-import 'screens/registration_screen.dart';
+import 'screens/welcome_screen.dart';
+import 'screens/dashboard_screen.dart';
 import 'services/config_service.dart';
-import 'services/localization_service.dart';
+import 'services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,10 +18,10 @@ void main() async {
       url: ConfigService.secureSupabaseUrl,
       anonKey: ConfigService.secureSupabaseAnonKey,
     );
-    print('Supabase initialized successfully');
+    debugPrint('Supabase initialized successfully');
   } catch (e) {
-    print('Supabase initialization failed: $e');
-    print('App will run without database functionality');
+    debugPrint('Supabase initialization failed: $e');
+    debugPrint('App will run without database functionality');
   }
 
   runApp(
@@ -28,6 +29,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => LocaleNotifier()),
         ChangeNotifierProvider(create: (_) => ThemeNotifier()),
+        ChangeNotifierProvider(create: (_) => CompletionNotifier()),
       ],
       child: const MyApp(),
     ),
@@ -43,16 +45,9 @@ class MyApp extends StatelessWidget {
       builder: (context, localeNotifier, themeNotifier, child) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            colorSchemeSeed: Colors.teal,
-            brightness: Brightness.light,
-            useMaterial3: true,
-          ),
-          darkTheme: ThemeData(
-            colorSchemeSeed: Colors.teal,
-            brightness: Brightness.dark,
-            useMaterial3: true,
-          ),
+          title: 'OIKAD - Student Portal',
+          theme: _buildLightTheme(),
+          darkTheme: _buildDarkTheme(),
           themeMode: themeNotifier.themeMode,
           locale: Locale(localeNotifier.locale),
           supportedLocales: const [Locale('en'), Locale('el')],
@@ -61,175 +56,191 @@ class MyApp extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          home: const StartScreen(),
+          home: const AuthWrapper(),
         );
       },
     );
   }
-}
 
-class StartScreen extends StatelessWidget {
-  const StartScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer2<LocaleNotifier, ThemeNotifier>(
-      builder: (context, localeNotifier, themeNotifier, child) {
-        final locale = localeNotifier.locale;
-        final themeMode = themeNotifier.themeMode;
-
-        return Scaffold(
-          appBar: AppBar(
-            title: Hero(
-              tag: 'app-logo',
-              child: AnimatedSwitcher(
-                duration: ConfigService.normalAnimationDuration,
-                child: Image.asset(
-                  'assets/oikad-logo.png',
-                  height: 50,
-                  key: ValueKey(locale),
-                ),
-              ),
-            ),
-            centerTitle: true,
-            actions: [
-              _LanguageToggleButton(
-                locale: locale,
-                onToggle: () => localeNotifier.toggleLocale(),
-              ),
-              _ThemeToggleButton(
-                themeMode: themeMode,
-                locale: locale,
-                onToggle: () => themeNotifier.toggleTheme(),
-              ),
-            ],
+  ThemeData _buildLightTheme() {
+    return ThemeData(
+      colorSchemeSeed: const Color(0xFF2E7D8F),
+      brightness: Brightness.light,
+      useMaterial3: true,
+      visualDensity: VisualDensity.adaptivePlatformDensity,
+      appBarTheme: const AppBarTheme(
+        elevation: 0,
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+      ),
+      cardTheme: CardThemeData(
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          elevation: 2,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-          body: const _StartScreenBody(),
-        );
-      },
-    );
-  }
-}
-
-class _StartScreenBody extends StatelessWidget {
-  const _StartScreenBody();
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<LocaleNotifier>(
-      builder: (context, localeNotifier, child) {
-        final locale = localeNotifier.locale;
-
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(ConfigService.largePadding * 1.5),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Hero(
-                  tag: 'app-logo-large',
-                  child: AnimatedContainer(
-                    duration: ConfigService.slowAnimationDuration,
-                    curve: Curves.easeOutCubic,
-                    child: Image.asset(
-                      'assets/oikad-logo.png',
-                      height: 120,
-                      key: ValueKey('${locale}_large'),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: ConfigService.largePadding * 2),
-                AnimatedContainer(
-                  duration: ConfigService.normalAnimationDuration,
-                  curve: Curves.easeOutCubic,
-                  child: _RegisterButton(locale: locale),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _RegisterButton extends StatelessWidget {
-  final String locale;
-
-  const _RegisterButton({required this.locale});
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const RegistrationScreen()),
-        );
-      },
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 20),
-        textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.person_add, size: 24),
-          const SizedBox(width: 12),
-          Text(LocalizationService.t(locale, 'register')),
-        ],
-      ),
-    );
-  }
-}
-
-class _LanguageToggleButton extends StatelessWidget {
-  final String locale;
-  final VoidCallback onToggle;
-
-  const _LanguageToggleButton({required this.locale, required this.onToggle});
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: ConfigService.normalAnimationDuration,
-      child: IconButton(
-        key: ValueKey(locale),
-        icon: const Icon(Icons.language),
-        tooltip: locale == 'en'
-            ? LocalizationService.t(locale, 'greek')
-            : LocalizationService.t(locale, 'english'),
-        onPressed: onToggle,
-      ),
-    );
-  }
-}
-
-class _ThemeToggleButton extends StatelessWidget {
-  final ThemeMode themeMode;
-  final String locale;
-  final VoidCallback onToggle;
-
-  const _ThemeToggleButton({
-    required this.themeMode,
-    required this.locale,
-    required this.onToggle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: ConfigService.normalAnimationDuration,
-      child: IconButton(
-        key: ValueKey(themeMode),
-        icon: Icon(
-          themeMode == ThemeMode.light ? Icons.dark_mode : Icons.light_mode,
         ),
-        tooltip: themeMode == ThemeMode.light
-            ? LocalizationService.t(locale, 'dark')
-            : LocalizationService.t(locale, 'light'),
-        onPressed: onToggle,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF2E7D8F), width: 2),
+        ),
       ),
     );
+  }
+
+  ThemeData _buildDarkTheme() {
+    return ThemeData(
+      brightness: Brightness.dark,
+      useMaterial3: true,
+      visualDensity: VisualDensity.adaptivePlatformDensity,
+      scaffoldBackgroundColor: const Color(0xFF0A0E13),
+      canvasColor: const Color(0xFF0F1419),
+      appBarTheme: const AppBarTheme(
+        elevation: 0,
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        iconTheme: IconThemeData(color: Colors.white),
+      ),
+      cardTheme: CardThemeData(
+        elevation: 4,
+        shadowColor: Colors.black.withOpacity(0.3),
+        color: const Color(0xFF1A1F2E),
+        surfaceTintColor: const Color(0xFF4A9FB8).withOpacity(0.1),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.white.withOpacity(0.1), width: 0.5),
+        ),
+      ),
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(color: Colors.white),
+        bodyMedium: TextStyle(color: Colors.white),
+        bodySmall: TextStyle(color: Colors.white70),
+        titleLarge: TextStyle(color: Colors.white),
+        titleMedium: TextStyle(color: Colors.white),
+        titleSmall: TextStyle(color: Colors.white),
+        headlineLarge: TextStyle(color: Colors.white),
+        headlineMedium: TextStyle(color: Colors.white),
+        headlineSmall: TextStyle(color: Colors.white),
+        labelLarge: TextStyle(color: Colors.white),
+        labelMedium: TextStyle(color: Colors.white70),
+        labelSmall: TextStyle(color: Colors.white70),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          elevation: 3,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          backgroundColor: const Color(0xFF4A9FB8),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF1A1F2E),
+        labelStyle: const TextStyle(color: Colors.white70),
+        hintStyle: const TextStyle(color: Colors.white54),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF4A9FB8), width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+        ),
+      ),
+      listTileTheme: ListTileThemeData(
+        tileColor: Colors.transparent,
+        selectedTileColor: const Color(0xFF4A9FB8).withOpacity(0.2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textColor: Colors.white,
+        iconColor: Colors.white70,
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Color(0xFF1A1F2E),
+        elevation: 8,
+        selectedItemColor: Color(0xFF4A9FB8),
+        unselectedItemColor: Colors.white54,
+      ),
+      iconTheme: const IconThemeData(color: Colors.white70),
+      primaryIconTheme: const IconThemeData(color: Colors.white),
+      colorScheme: const ColorScheme.dark(
+        primary: Color(0xFF4A9FB8),
+        onPrimary: Colors.white,
+        secondary: Color(0xFF4A9FB8),
+        onSecondary: Colors.white,
+        surface: Color(0xFF1A1F2E),
+        onSurface: Colors.white,
+        error: Colors.redAccent,
+        onError: Colors.white,
+        outline: Colors.white38,
+      ),
+    );
+  }
+}
+
+class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthState();
+  }
+
+  void _checkAuthState() {
+    // Listen to auth state changes
+    AuthService.authStateChanges.listen((data) {
+      if (mounted) {
+        setState(() {
+          // This will trigger a rebuild when auth state changes
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Check if user is authenticated
+    if (AuthService.isAuthenticated) {
+      return const DashboardScreen();
+    } else {
+      return const WelcomeScreen();
+    }
   }
 }
