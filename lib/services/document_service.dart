@@ -240,6 +240,92 @@ class DocumentService {
     }
   }
 
+  /// Get document submission for a student
+  static Future<Map<String, dynamic>?> getDocumentSubmission(
+    String studentId,
+  ) async {
+    try {
+      final submission = await _supabase
+          .from('document_submissions')
+          .select('*')
+          .eq('student_id', studentId)
+          .maybeSingle();
+
+      return submission;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error fetching document submission: $e');
+      }
+      return null;
+    }
+  }
+
+  /// Update existing document submission or create new one
+  static Future<Map<String, dynamic>> updateOrCreateDocumentSubmission({
+    required String studentId,
+    required bool consentAccepted,
+    required String consentText,
+    required List<int> selectedCategoryIds,
+    String? userAgent,
+    String? ipAddress,
+  }) async {
+    try {
+      // Check if submission already exists
+      final existingSubmission = await _supabase
+          .from('document_submissions')
+          .select('id')
+          .eq('student_id', studentId)
+          .maybeSingle();
+
+      final submissionData = {
+        'student_id': studentId,
+        'consent_accepted': consentAccepted,
+        'consent_text': consentText,
+        'consent_date': DateTime.now().toIso8601String(),
+        'selected_categories': selectedCategoryIds,
+        'submission_status': 'submitted',
+        'submitted_by_ip': ipAddress,
+        'user_agent': userAgent,
+      };
+
+      Map<String, dynamic> response;
+
+      if (existingSubmission != null) {
+        // Update existing submission
+        response = await _supabase
+            .from('document_submissions')
+            .update(submissionData)
+            .eq('id', existingSubmission['id'])
+            .select()
+            .single();
+      } else {
+        // Create new submission
+        response = await _supabase
+            .from('document_submissions')
+            .insert(submissionData)
+            .select()
+            .single();
+      }
+
+      return {
+        'success': true,
+        'submission_id': response['id'],
+        'message': existingSubmission != null
+            ? 'Document submission updated successfully'
+            : 'Document submission created successfully',
+      };
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error updating/creating document submission: $e');
+      }
+      return {
+        'success': false,
+        'error': e.toString(),
+        'message': 'Failed to update/create submission: ${e.toString()}',
+      };
+    }
+  }
+
   /// Get documents for a student
   static Future<List<Map<String, dynamic>>> getStudentDocuments(
     String studentId,

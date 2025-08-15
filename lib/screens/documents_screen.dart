@@ -78,12 +78,91 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     }
 
     try {
-      // Load existing document submission data
-      // This would need to be implemented in DocumentService to load existing submissions
-      // For now, just mark as loading complete
+      final currentUserId = AuthService.currentUserId!;
 
-      // Check if there are existing documents and set checkboxes accordingly
-      // This is a placeholder - you'd need to implement the actual loading logic
+      // Load existing document submission
+      final submission = await DocumentService.getDocumentSubmission(
+        currentUserId,
+      );
+      if (submission != null) {
+        setState(() {
+          _consentAccepted = submission['consent_accepted'] ?? false;
+        });
+      }
+
+      // Load existing documents
+      final existingDocuments = await DocumentService.getStudentDocuments(
+        currentUserId,
+      );
+
+      // Create a map of category keys to document info for easier lookup
+      final documentMap = <String, Map<String, dynamic>>{};
+      for (final doc in existingDocuments) {
+        final category = doc['category'] as Map<String, dynamic>?;
+        if (category != null) {
+          final categoryKey = category['category_key'] as String?;
+          if (categoryKey != null) {
+            documentMap[categoryKey] = doc;
+          }
+        }
+      }
+
+      // Restore UI state based on existing documents
+      setState(() {
+        // Check which documents exist and create placeholder PlatformFiles
+        if (documentMap.containsKey('student_photo')) {
+          final doc = documentMap['student_photo']!;
+          _studentPhoto = PlatformFile(
+            name: doc['original_file_name'] ?? 'student_photo',
+            size: doc['file_size_bytes'] ?? 0,
+            path: doc['file_path'],
+          );
+        }
+
+        if (documentMap.containsKey('id_front')) {
+          final doc = documentMap['id_front']!;
+          _idFrontPhoto = PlatformFile(
+            name: doc['original_file_name'] ?? 'id_front',
+            size: doc['file_size_bytes'] ?? 0,
+            path: doc['file_path'],
+          );
+          _selectedDocumentType = 'id';
+        }
+
+        if (documentMap.containsKey('id_back')) {
+          final doc = documentMap['id_back']!;
+          _idBackPhoto = PlatformFile(
+            name: doc['original_file_name'] ?? 'id_back',
+            size: doc['file_size_bytes'] ?? 0,
+            path: doc['file_path'],
+          );
+          _selectedDocumentType = 'id';
+        }
+
+        if (documentMap.containsKey('passport')) {
+          final doc = documentMap['passport']!;
+          _passportPhoto = PlatformFile(
+            name: doc['original_file_name'] ?? 'passport',
+            size: doc['file_size_bytes'] ?? 0,
+            path: doc['file_path'],
+          );
+          _selectedDocumentType = 'passport';
+        }
+
+        if (documentMap.containsKey('medical_certificate')) {
+          final doc = documentMap['medical_certificate']!;
+          _medicalCertificateFile = PlatformFile(
+            name: doc['original_file_name'] ?? 'medical_certificate',
+            size: doc['file_size_bytes'] ?? 0,
+            path: doc['file_path'],
+          );
+        }
+      });
+
+      // Refresh completion status after loading documents
+      if (mounted) {
+        context.read<CompletionNotifier>().refreshCompletionStatus();
+      }
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Error loading existing documents: $e');
@@ -174,8 +253,6 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     }
   }
 
-
-
   Future<void> _saveDocuments({bool isDraft = false}) async {
     final locale = context.read<LocaleNotifier>().locale;
 
@@ -202,8 +279,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
       List<Map<String, dynamic>> uploadedFiles = [];
 
-      // Upload student photo
-      if (_studentPhoto != null) {
+      // Upload student photo (only if it's a new file, not an existing one)
+      if (_studentPhoto != null && _studentPhoto!.bytes != null) {
         final result = await DocumentService.uploadDocument(
           studentId: currentUserId,
           categoryKey: 'student_photo',
@@ -212,8 +289,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         uploadedFiles.add(result);
       }
 
-      // Upload ID front photo
-      if (_idFrontPhoto != null) {
+      // Upload ID front photo (only if it's a new file, not an existing one)
+      if (_idFrontPhoto != null && _idFrontPhoto!.bytes != null) {
         final result = await DocumentService.uploadDocument(
           studentId: currentUserId,
           categoryKey: 'id_front',
@@ -222,8 +299,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         uploadedFiles.add(result);
       }
 
-      // Upload passport photo
-      if (_passportPhoto != null) {
+      // Upload passport photo (only if it's a new file, not an existing one)
+      if (_passportPhoto != null && _passportPhoto!.bytes != null) {
         final result = await DocumentService.uploadDocument(
           studentId: currentUserId,
           categoryKey: 'passport',
@@ -232,8 +309,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         uploadedFiles.add(result);
       }
 
-      // Upload ID back photo
-      if (_idBackPhoto != null) {
+      // Upload ID back photo (only if it's a new file, not an existing one)
+      if (_idBackPhoto != null && _idBackPhoto!.bytes != null) {
         final result = await DocumentService.uploadDocument(
           studentId: currentUserId,
           categoryKey: 'id_back',
@@ -242,8 +319,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         uploadedFiles.add(result);
       }
 
-      // Upload medical certificate
-      if (_medicalCertificateFile != null) {
+      // Upload medical certificate (only if it's a new file, not an existing one)
+      if (_medicalCertificateFile != null &&
+          _medicalCertificateFile!.bytes != null) {
         final result = await DocumentService.uploadDocument(
           studentId: currentUserId,
           categoryKey: 'medical_certificate',
@@ -282,8 +360,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         }
       }
 
-      // Create document submission
-      await DocumentService.createDocumentSubmission(
+      // Create or update document submission
+      await DocumentService.updateOrCreateDocumentSubmission(
         studentId: currentUserId,
         consentAccepted: _consentAccepted,
         consentText: t(locale, 'consent_declaration'),
@@ -366,6 +444,44 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   return const Icon(Icons.image, size: 20);
                 },
               )
+            : file.path != null
+            ? Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    ImageProcessingService.isImageFile(file)
+                        ? Icons.image
+                        : ImageProcessingService.isPdfFile(file)
+                        ? Icons.picture_as_pdf
+                        : Icons.insert_drive_file,
+                    size: 20,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white70
+                        : Colors.grey.shade600,
+                  ),
+                  Positioned(
+                    bottom: 2,
+                    right: 2,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.surface,
+                          width: 1,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.check,
+                        color: Colors.white,
+                        size: 8,
+                      ),
+                    ),
+                  ),
+                ],
+              )
             : Icon(
                 ImageProcessingService.isPdfFile(file)
                     ? Icons.picture_as_pdf
@@ -414,7 +530,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               ElevatedButton(
                 onPressed: () => _pickFile(fileType),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).brightness == Brightness.dark
+                  backgroundColor:
+                      Theme.of(context).brightness == Brightness.dark
                       ? const Color(0xFF64B5F6)
                       : Theme.of(context).primaryColor,
                   foregroundColor: Colors.white,
@@ -424,9 +541,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 ),
                 child: Text(
                   'Choose File',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
               const SizedBox(width: 12),
@@ -519,7 +634,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         title: Text(
                           t(locale, 'id_card_front_back'),
                           style: TextStyle(
-                            color: Theme.of(context).brightness == Brightness.dark
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
                                 ? Colors.white
                                 : null,
                           ),
@@ -535,7 +651,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                             }
                           });
                         },
-                        activeColor: Theme.of(context).brightness == Brightness.dark
+                        activeColor:
+                            Theme.of(context).brightness == Brightness.dark
                             ? const Color(0xFF64B5F6)
                             : Theme.of(context).primaryColor,
                       ),
@@ -543,7 +660,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         title: Text(
                           t(locale, 'passport_document'),
                           style: TextStyle(
-                            color: Theme.of(context).brightness == Brightness.dark
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
                                 ? Colors.white
                                 : null,
                           ),
@@ -560,7 +678,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                             }
                           });
                         },
-                        activeColor: Theme.of(context).brightness == Brightness.dark
+                        activeColor:
+                            Theme.of(context).brightness == Brightness.dark
                             ? const Color(0xFF64B5F6)
                             : Theme.of(context).primaryColor,
                       ),
@@ -628,7 +747,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                             _consentAccepted = value ?? false;
                           });
                         },
-                        activeColor: Theme.of(context).brightness == Brightness.dark
+                        activeColor:
+                            Theme.of(context).brightness == Brightness.dark
                             ? const Color(0xFF64B5F6)
                             : Theme.of(context).primaryColor,
                         checkColor: Colors.white,
@@ -640,11 +760,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                             const SizedBox(height: 12),
                             RichText(
                               text: TextSpan(
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Colors.white70
-                                      : null,
-                                ),
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      color:
+                                          Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? Colors.white70
+                                          : null,
+                                    ),
                                 children: [
                                   TextSpan(
                                     text: locale == 'el'

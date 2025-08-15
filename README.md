@@ -2,81 +2,13 @@
 
 A modern Flutter application for student dormitory registration with document management, built with Supabase backend integration.
 
-## 🏠 Overview
-
-OIKAD is a comprehensive dormitory registration system that streamlines the student housing application process. Students can register for dormitory accommodation, upload required documents, and track their application status through an intuitive mobile and web interface.
-
-## ✨ Features
-
-### 📝 **Registration System**
-- Complete dormitory application with personal, academic, and family information
-- Multi-step form with validation and data sanitization
-- Real-time form saving and progress tracking
-
-### 📄 **Document Management**
-- Smart document selection (ID Card OR Passport)
-- Image compression and optimization
-- Secure file upload to Supabase Storage
-- Support for multiple file formats (JPG, PNG, PDF)
-
-### 🌍 **Internationalization**
-- Full bilingual support (English & Greek)
-- Dynamic language switching
-- Culturally appropriate translations and formatting
-
-### 🎨 **Modern UI/UX**
-- Material Design 3 components
-- Dark/Light theme support with system preference detection
-- Smooth animations and transitions
-- Responsive design for mobile, tablet, and desktop
-
-### 🔐 **Security & Privacy**
-- Supabase authentication integration
-- Row Level Security (RLS) policies
-- Input validation and sanitization
-- GDPR-compliant data handling
-
-### 📱 **Cross-Platform**
-- iOS & Android mobile apps
-- Progressive Web App (PWA)
-- Desktop support (Windows, macOS, Linux)
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Flutter Frontend                         │
-├─────────────────────────────────────────────────────────────┤
-│  • Registration Screens    • Document Upload               │
-│  • Dashboard              • Authentication UI              │
-│  • Localization          • Theme Management                │
-└─────────────────────────────────────────────────────────────┘
-                                    │
-                                    │ HTTP/REST API
-                                    ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   Supabase Backend                          │
-├─────────────────────────────────────────────────────────────┤
-│  • PostgreSQL Database    • Authentication                 │
-│  • Row Level Security     • File Storage                   │
-│  • Real-time Updates      • Edge Functions                 │
-└─────────────────────────────────────────────────────────────┘
-```
-
 ## 🚀 Quick Start
-
-### Prerequisites
-
-- Flutter SDK (^3.8.1)
-- Dart SDK
-- Supabase account
-- Android Studio / VS Code
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/oikad.git
+   git clone https://github.com/paterkleomenis/oikad.git
    cd oikad
    ```
 
@@ -99,7 +31,7 @@ OIKAD is a comprehensive dormitory registration system that streamlines the stud
 
 5. **Run the app**
    ```bash
-   flutter run
+   flutter run --dart-define-from-file=.env
    ```
 
 ## 📁 Project Structure
@@ -174,37 +106,5 @@ flutter analyze
 | **PostgreSQL** | Relational database |
 | **Image Compression** | File optimization for uploads |
 
-## 🌐 Localization
-
-The app supports:
-- **English** (en) - Default language
-- **Greek** (el) - Full localization including forms, validation messages, and UI text
-
-Language can be changed dynamically through the UI, with preferences persisted locally.
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📞 Support
-
-For support, email [support@oikad.example] or create an issue on GitHub.
-
-## 🙏 Acknowledgments
-
-- Flutter team for the amazing framework
-- Supabase for the powerful backend services
-- Material Design team for the design system
-- The open-source community for various packages used
 
 ---
-
-**Built with ❤️ using Flutter and Supabase**
