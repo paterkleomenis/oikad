@@ -370,7 +370,7 @@ class UpdateService extends ChangeNotifier {
 
     return {
       'currentVersion': VersionService.formatVersion(
-        _currentVersion ?? '1.0.7',
+        _currentVersion ?? '1.0.8',
       ),
       'newVersion': VersionService.formatVersion(_availableUpdate!.version),
       'fileSize': VersionService.formatFileSize(_availableUpdate!.fileSize),
