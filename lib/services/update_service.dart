@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -177,9 +178,15 @@ class UpdateService extends ChangeNotifier {
     try {
       // Request storage permission on Android
       if (Platform.isAndroid) {
-        final permission = await Permission.storage.request();
-        if (!permission.isGranted) {
-          throw Exception('Storage permission denied');
+        // Request multiple permissions for Android 13+
+        final permissions = [
+          Permission.storage,
+          Permission.manageExternalStorage,
+        ];
+
+        for (final permission in permissions) {
+          final status = await permission.request();
+          debugPrint('Permission $permission status: $status');
         }
       }
 
@@ -188,6 +195,9 @@ class UpdateService extends ChangeNotifier {
       final fileName = _getFileName();
       _downloadPath = '${directory.path}/$fileName';
 
+      debugPrint('Downloading to: $_downloadPath');
+      debugPrint('Download URL: ${_availableUpdate!.downloadUrl}');
+
       // Download the file
       await _dio.download(
         _availableUpdate!.downloadUrl,
@@ -195,15 +205,23 @@ class UpdateService extends ChangeNotifier {
         onReceiveProgress: (received, total) {
           if (total != -1) {
             _downloadProgress = received / total;
+            debugPrint(
+              'Download progress: ${(_downloadProgress * 100).toStringAsFixed(1)}%',
+            );
             notifyListeners();
           }
         },
+      );
+
+      debugPrint(
+        'Download completed. File size: ${await File(_downloadPath!).length()} bytes',
       );
 
       // Install the downloaded file
       return await _installDownloadedFile();
     } catch (e) {
       debugPrint('Error downloading/installing update: $e');
+      debugPrint('Error type: ${e.runtimeType}');
       return false;
     } finally {
       _isDownloading = false;
@@ -215,8 +233,21 @@ class UpdateService extends ChangeNotifier {
   /// Get appropriate download directory
   Future<Directory> _getDownloadDirectory() async {
     if (Platform.isAndroid) {
-      final directory = await getExternalStorageDirectory();
-      return directory ?? await getApplicationDocumentsDirectory();
+      try {
+        // Try external storage first
+        final externalDir = await getExternalStorageDirectory();
+        if (externalDir != null) {
+          debugPrint('Using external storage: ${externalDir.path}');
+          return externalDir;
+        }
+      } catch (e) {
+        debugPrint('External storage not available: $e');
+      }
+
+      // Fallback to app documents directory
+      final appDir = await getApplicationDocumentsDirectory();
+      debugPrint('Using app documents directory: ${appDir.path}');
+      return appDir;
     } else {
       return await getDownloadsDirectory() ??
           await getApplicationDocumentsDirectory();
@@ -239,24 +270,92 @@ class UpdateService extends ChangeNotifier {
 
   /// Install downloaded file
   Future<bool> _installDownloadedFile() async {
-    if (_downloadPath == null) return false;
+    if (_downloadPath == null) {
+      debugPrint('No download path available');
+      return false;
+    }
+
+    // Verify file exists
+    final file = File(_downloadPath!);
+    if (!await file.exists()) {
+      debugPrint('Downloaded file not found at: $_downloadPath');
+      return false;
+    }
+
+    final fileSize = await file.length();
+    debugPrint('Installing file: $_downloadPath (${fileSize} bytes)');
 
     try {
       if (Platform.isAndroid) {
-        // For Android, open the APK file with the default app installer
+        // For Android, try multiple installation methods
+
+        // Method 1: Use Android platform channel for direct installation
+        try {
+          const platform = MethodChannel('com.example.oikad/installer');
+          final result = await platform.invokeMethod('installApk', {
+            'filePath': _downloadPath,
+          });
+
+          if (result == true) {
+            debugPrint('APK installed via platform channel');
+            return true;
+          }
+        } catch (e) {
+          debugPrint('Platform channel installation failed: $e');
+        }
+
+        // Method 2: Try to open with file manager/installer
         final uri = Uri.file(_downloadPath!);
+        debugPrint('Attempting to launch APK: $uri');
+
         final success = await launchUrl(
           uri,
           mode: LaunchMode.externalApplication,
         );
 
-        if (!success) {
-          // If direct launch fails, show user where to find the file
-          debugPrint('APK launch failed, file saved at: $_downloadPath');
-          // You can add a dialog here to guide users to install manually
+        if (success) {
+          debugPrint('APK launched successfully');
+          return true;
         }
 
-        return success;
+        // Method 3: Try with different URI scheme
+        debugPrint('File launch failed, trying content URI');
+
+        try {
+          final fileName = _downloadPath!.split('/').last;
+          final contentUri = Uri.parse(
+            'content://com.example.oikad.fileprovider/$fileName',
+          );
+          final success2 = await launchUrl(
+            contentUri,
+            mode: LaunchMode.externalApplication,
+          );
+
+          if (success2) {
+            debugPrint('APK launched with FileProvider URI');
+            return true;
+          }
+        } catch (e) {
+          debugPrint('FileProvider URI method failed: $e');
+        }
+
+        // Method 4: Open Downloads folder for manual installation
+        try {
+          final downloadsUri = Uri.parse(
+            'content://com.android.externalstorage.documents/document/primary:Download',
+          );
+          await launchUrl(downloadsUri, mode: LaunchMode.externalApplication);
+          debugPrint('Opened Downloads folder for manual installation');
+        } catch (e) {
+          debugPrint('Could not open Downloads folder: $e');
+        }
+
+        // If all automatic methods fail, the file is still downloaded
+        debugPrint('APK download completed. Manual installation required.');
+        debugPrint('File location: $_downloadPath');
+
+        // Return true because download succeeded
+        return true;
       } else {
         // For desktop platforms, open the installer
         final uri = Uri.file(_downloadPath!);
@@ -264,7 +363,9 @@ class UpdateService extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Error installing update: $e');
-      return false;
+      debugPrint('File still available at: $_downloadPath');
+      // Return true because download succeeded
+      return true;
     }
   }
 

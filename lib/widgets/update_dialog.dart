@@ -304,9 +304,9 @@ class UpdateDialog extends StatelessWidget {
           final success = await updateService.downloadAndInstall();
           if (success && context.mounted) {
             Navigator.of(context).pop();
-            _showUpdateSuccessSnackbar(context);
+            _showUpdateSuccessDialog(context);
           } else if (context.mounted) {
-            _showUpdateErrorSnackbar(context);
+            _showUpdateErrorDialog(context);
           }
         },
         child: Text(update.isForced ? 'Update Now' : 'Update'),
@@ -326,22 +326,103 @@ class UpdateDialog extends StatelessWidget {
     );
   }
 
-  void _showUpdateSuccessSnackbar(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Update downloaded successfully!'),
-        backgroundColor: Colors.green,
-        duration: Duration(seconds: 3),
+  void _showUpdateSuccessDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.check_circle, color: Colors.green, size: 48),
+        title: const Text('Update Downloaded!'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('The update has been downloaded successfully.'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '📱 Installation Instructions:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 8),
+                  Text('1. Check your file manager or Downloads folder'),
+                  Text('2. Look for the APK file'),
+                  Text(
+                    '3. Tap to install (enable "Unknown sources" if needed)',
+                  ),
+                  Text('4. Follow the installation prompts'),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it!'),
+          ),
+        ],
       ),
     );
   }
 
-  void _showUpdateErrorSnackbar(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Failed to download update. Please try again.'),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 3),
+  void _showUpdateErrorDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.error, color: Colors.red, size: 48),
+        title: const Text('Update Failed'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Failed to download or install the update.'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '🔧 Troubleshooting:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 8),
+                  Text('• Check internet connection'),
+                  Text('• Ensure sufficient storage space'),
+                  Text('• Enable "Install from unknown sources"'),
+                  Text('• Try downloading manually from GitHub'),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Try the update again
+              final updateService = context.read<UpdateService>();
+              updateService.downloadAndInstall();
+            },
+            child: const Text('Try Again'),
+          ),
+        ],
       ),
     );
   }

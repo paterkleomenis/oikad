@@ -335,7 +335,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 border: Border.all(color: Colors.green),
                               ),
                               child: Text(
-                                'v1.0.3 - New Version! 🎉',
+                                'v1.0.3',
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       color: Colors.green.shade700,
