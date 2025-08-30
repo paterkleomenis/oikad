@@ -3,13 +3,13 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., 1.0.1)'
+        description: "Version to release (e.g., 1.0.1)"
         required: true
-        default: '1.0.1'
+        default: "1.0.1"
 
 jobs:
   build-android:
@@ -21,20 +21,25 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '17'
+          distribution: "zulu"
+          java-version: "17"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
+          flutter-version: "3.24.0"
+          channel: "stable"
 
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Create .env file
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+
       - name: Build APK
-        run: flutter build apk --release
+        run: flutter build apk --release --dart-define-from-file=.env
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -51,14 +56,19 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
+          flutter-version: "3.24.0"
+          channel: "stable"
 
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Create .env file
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+
       - name: Build Windows
-        run: flutter build windows --release
+        run: flutter build windows --release --dart-define-from-file=.env
 
       - name: Create Windows installer
         run: |
@@ -70,112 +80,11 @@ jobs:
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-exe
+          name: windows-installer
           path: oikad-windows.zip
 
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Build macOS
-        run: flutter build macos --release
-
-      - name: Create DMG
-        run: |
-          mkdir -p dmg
-          cp -R build/macos/Build/Products/Release/oikad.app dmg/
-          hdiutil create -volname "OIKAD" -srcfolder dmg -ov -format UDZO oikad-macos.dmg
-
-      - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-dmg
-          path: oikad-macos.dmg
-
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Build Linux
-        run: flutter build linux --release
-
-      - name: Create DEB package
-        run: |
-          mkdir -p deb-package/DEBIAN
-          mkdir -p deb-package/usr/local/bin
-          mkdir -p deb-package/usr/share/applications
-          mkdir -p deb-package/usr/share/icons/hicolor/256x256/apps
-
-          # Copy binary
-          cp -r build/linux/x64/release/bundle/* deb-package/usr/local/bin/
-
-          # Create desktop file
-          cat > deb-package/usr/share/applications/oikad.desktop << EOF
-          [Desktop Entry]
-          Name=OIKAD
-          Comment=Dormitory Registration System
-          Exec=/usr/local/bin/oikad
-          Icon=oikad
-          Terminal=false
-          Type=Application
-          Categories=Education;
-          EOF
-
-          # Copy icon if exists
-          if [ -f "assets/oikad-logo.png" ]; then
-            cp assets/oikad-logo.png deb-package/usr/share/icons/hicolor/256x256/apps/oikad.png
-          fi
-
-          # Create control file
-          cat > deb-package/DEBIAN/control << EOF
-          Package: oikad
-          Version: ${GITHUB_REF#refs/tags/v}
-          Section: education
-          Priority: optional
-          Architecture: amd64
-          Maintainer: OIKAD Team <support@oikad.com>
-          Description: Dormitory Registration System
-           A modern Flutter application for student dormitory registration
-           with document management, built with Supabase backend integration.
-          EOF
-
-          dpkg-deb --build deb-package oikad-linux.deb
-
-      - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-deb
-          path: oikad-linux.deb
-
   create-release:
-    needs: [build-android, build-windows, build-macos, build-linux]
+    needs: [build-android, build-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -197,51 +106,39 @@ jobs:
 
       - name: Rename artifacts
         run: |
+          # Rename APK (keep as APK!)
           mv android-apk/app-release.apk oikad_${{ steps.version.outputs.VERSION }}.apk
-          mv windows-exe/oikad-windows.zip oikad_${{ steps.version.outputs.VERSION }}.exe
-          mv macos-dmg/oikad-macos.dmg oikad_${{ steps.version.outputs.VERSION }}.dmg
-          mv linux-deb/oikad-linux.deb oikad_${{ steps.version.outputs.VERSION }}.deb
+
+          # Rename Windows ZIP (keep as ZIP!)
+          mv windows-installer/oikad-windows.zip oikad_${{ steps.version.outputs.VERSION }}_windows.zip
 
       - name: Generate release notes
         id: release_notes
         run: |
-          if [ -f "CHANGELOG.md" ]; then
-            # Extract changelog for this version
-            awk '/^## \[${{ steps.version.outputs.VERSION }}\]/{flag=1; next} /^## \[/{flag=0} flag' CHANGELOG.md > release_notes.md
-          else
-            # Generate basic release notes
-            cat > release_notes.md << EOF
-          ## New Features
+          cat > release_notes.md << EOF
+          ## OIKAD v${{ steps.version.outputs.VERSION }}
+
+          ### 📱 Download for Your Platform:
+
+          **Android** 📲
+          - Download: \`oikad_${{ steps.version.outputs.VERSION }}.apk\`
+          - Installation: Enable "Install from unknown sources" and install the APK
+
+          **Windows** 🖥️
+          - Download: \`oikad_${{ steps.version.outputs.VERSION }}_windows.zip\`
+          - Installation: Extract ZIP and run the executable
+
+          ### ✨ New Features
+          - Auto-update system implementation
+          - Enhanced user interface
           - Performance improvements
           - Bug fixes and stability enhancements
+
+          ### 🔧 Technical Improvements
           - Updated dependencies
-
-          ## Download
-          Choose the appropriate version for your platform:
-          - **Android**: Download the APK file
-          - **Windows**: Download the EXE file
-          - **macOS**: Download the DMG file
-          - **Linux**: Download the DEB file
-
-          ## Installation
-          ### Android
-          1. Download the APK file
-          2. Enable "Install from unknown sources" in your device settings
-          3. Install the APK
-
-          ### Windows
-          1. Download the EXE file
-          2. Extract and run the installer
-
-          ### macOS
-          1. Download the DMG file
-          2. Open and drag the app to Applications folder
-
-          ### Linux
-          1. Download the DEB file
-          2. Install with: \`sudo dpkg -i oikad_${{ steps.version.outputs.VERSION }}.deb\`
+          - Better error handling
+          - Improved security
           EOF
-          fi
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -253,17 +150,6 @@ jobs:
           prerelease: false
           files: |
             oikad_${{ steps.version.outputs.VERSION }}.apk
-            oikad_${{ steps.version.outputs.VERSION }}.exe
-            oikad_${{ steps.version.outputs.VERSION }}.dmg
-            oikad_${{ steps.version.outputs.VERSION }}.deb
+            oikad_${{ steps.version.outputs.VERSION }}_windows.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update latest release info
-        run: |
-          echo "Release v${{ steps.version.outputs.VERSION }} has been created successfully!"
-          echo "Download links:"
-          echo "- Android: https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.TAG }}/oikad_${{ steps.version.outputs.VERSION }}.apk"
-          echo "- Windows: https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.TAG }}/oikad_${{ steps.version.outputs.VERSION }}.exe"
-          echo "- macOS: https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.TAG }}/oikad_${{ steps.version.outputs.VERSION }}.dmg"
-          echo "- Linux: https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.TAG }}/oikad_${{ steps.version.outputs.VERSION }}.deb"
