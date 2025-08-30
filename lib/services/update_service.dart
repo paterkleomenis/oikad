@@ -81,31 +81,22 @@ class UpdateService extends ChangeNotifier {
     if (!silent) notifyListeners();
 
     try {
-      debugPrint('Checking for updates at: $_githubRepoUrl');
       final response = await _dio.get(_githubRepoUrl);
 
       if (response.statusCode == 200) {
         final releases = response.data as List<dynamic>;
-        debugPrint('Found ${releases.length} releases');
 
         if (releases.isNotEmpty) {
           final latestRelease = releases.first as Map<String, dynamic>;
-          debugPrint('Latest release tag: ${latestRelease['tag_name']}');
 
           try {
             final update = AppUpdate.fromGitHubRelease(latestRelease);
-            debugPrint('Parsed update version: ${update.version}');
-            debugPrint('Current version: $_currentVersion');
 
             if (_currentVersion != null &&
                 VersionService.isNewerVersion(
                   _currentVersion!,
                   update.version,
                 )) {
-              debugPrint(
-                'Newer version available: ${update.version} > $_currentVersion',
-              );
-
               // Check if user has skipped this version
               final prefs = await SharedPreferences.getInstance();
               final skippedVersion = prefs.getString(_skipVersionKey);
@@ -121,25 +112,12 @@ class UpdateService extends ChangeNotifier {
 
                 if (!silent) notifyListeners();
                 return true;
-              } else {
-                debugPrint(
-                  'Update version ${update.version} was skipped by user',
-                );
               }
-            } else {
-              debugPrint('No newer version available');
             }
           } catch (parseError) {
             debugPrint('Error parsing update from release: $parseError');
-            debugPrint('Release data: $latestRelease');
           }
-        } else {
-          debugPrint('No releases found in repository');
         }
-      } else {
-        debugPrint(
-          'HTTP error ${response.statusCode}: ${response.statusMessage}',
-        );
       }
 
       _availableUpdate = null;
@@ -147,7 +125,6 @@ class UpdateService extends ChangeNotifier {
       return false;
     } catch (e) {
       debugPrint('Error checking for updates: $e');
-      debugPrint('Error type: ${e.runtimeType}');
       _availableUpdate = null;
       if (!silent) notifyListeners();
       return false;
@@ -193,9 +170,6 @@ class UpdateService extends ChangeNotifier {
       final fileName = _getFileName();
       _downloadPath = '${directory.path}/$fileName';
 
-      debugPrint('Downloading to: $_downloadPath');
-      debugPrint('Download URL: ${_availableUpdate!.downloadUrl}');
-
       // Download the file
       await _dio.download(
         _availableUpdate!.downloadUrl,
@@ -203,23 +177,15 @@ class UpdateService extends ChangeNotifier {
         onReceiveProgress: (received, total) {
           if (total != -1) {
             _downloadProgress = received / total;
-            debugPrint(
-              'Download progress: ${(_downloadProgress * 100).toStringAsFixed(1)}%',
-            );
             notifyListeners();
           }
         },
-      );
-
-      debugPrint(
-        'Download completed. File size: ${await File(_downloadPath!).length()} bytes',
       );
 
       // Install the downloaded file
       return await _installDownloadedFile();
     } catch (e) {
       debugPrint('Error downloading/installing update: $e');
-      debugPrint('Error type: ${e.runtimeType}');
       return false;
     } finally {
       _isDownloading = false;
@@ -235,7 +201,6 @@ class UpdateService extends ChangeNotifier {
         // Try external storage first
         final externalDir = await getExternalStorageDirectory();
         if (externalDir != null) {
-          debugPrint('Using external storage: ${externalDir.path}');
           return externalDir;
         }
       } catch (e) {
@@ -244,7 +209,6 @@ class UpdateService extends ChangeNotifier {
 
       // Fallback to app documents directory
       final appDir = await getApplicationDocumentsDirectory();
-      debugPrint('Using app documents directory: ${appDir.path}');
       return appDir;
     } else {
       return await getDownloadsDirectory() ??
@@ -269,7 +233,6 @@ class UpdateService extends ChangeNotifier {
   /// Install downloaded file
   Future<bool> _installDownloadedFile() async {
     if (_downloadPath == null) {
-      debugPrint('No download path available');
       return false;
     }
 
@@ -279,9 +242,6 @@ class UpdateService extends ChangeNotifier {
       debugPrint('Downloaded file not found at: $_downloadPath');
       return false;
     }
-
-    final fileSize = await file.length();
-    debugPrint('Installing file: $_downloadPath (${fileSize} bytes)');
 
     try {
       if (Platform.isAndroid) {
@@ -295,7 +255,6 @@ class UpdateService extends ChangeNotifier {
           });
 
           if (result == true) {
-            debugPrint('APK installed via platform channel');
             return true;
           }
         } catch (e) {
@@ -304,7 +263,6 @@ class UpdateService extends ChangeNotifier {
 
         // Method 2: Try to open with file manager/installer
         final uri = Uri.file(_downloadPath!);
-        debugPrint('Attempting to launch APK: $uri');
 
         final success = await launchUrl(
           uri,
@@ -312,12 +270,10 @@ class UpdateService extends ChangeNotifier {
         );
 
         if (success) {
-          debugPrint('APK launched successfully');
           return true;
         }
 
         // Method 3: Try with different URI scheme
-        debugPrint('File launch failed, trying content URI');
 
         try {
           final fileName = _downloadPath!.split('/').last;
@@ -330,7 +286,6 @@ class UpdateService extends ChangeNotifier {
           );
 
           if (success2) {
-            debugPrint('APK launched with FileProvider URI');
             return true;
           }
         } catch (e) {
@@ -343,14 +298,11 @@ class UpdateService extends ChangeNotifier {
             'content://com.android.externalstorage.documents/document/primary:Download',
           );
           await launchUrl(downloadsUri, mode: LaunchMode.externalApplication);
-          debugPrint('Opened Downloads folder for manual installation');
         } catch (e) {
           debugPrint('Could not open Downloads folder: $e');
         }
 
         // If all automatic methods fail, the file is still downloaded
-        debugPrint('APK download completed. Manual installation required.');
-        debugPrint('File location: $_downloadPath');
 
         // Return true because download succeeded
         return true;
@@ -361,9 +313,39 @@ class UpdateService extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Error installing update: $e');
-      debugPrint('File still available at: $_downloadPath');
       // Return true because download succeeded
       return true;
+    }
+  }
+
+  /// Check existing permissions without requesting
+  Future<bool> _checkExistingPermissions() async {
+    try {
+      final storageStatus = await Permission.storage.status;
+      final isGranted = storageStatus.isGranted || storageStatus.isLimited;
+      return isGranted;
+    } catch (e) {
+      debugPrint('Error checking permissions: $e');
+      return false;
+    }
+  }
+
+  /// Request storage permissions once and cache the result
+  Future<bool> _requestStoragePermissions() async {
+    try {
+      // Check if permissions are already granted
+      final storageStatus = await Permission.storage.status;
+      if (storageStatus.isGranted || storageStatus.isLimited) {
+        return true;
+      }
+
+      // Request permissions only if not granted
+      final storageResult = await Permission.storage.request();
+
+      return storageResult.isGranted || storageResult.isLimited;
+    } catch (e) {
+      debugPrint('Error requesting permissions: $e');
+      return false;
     }
   }
 
@@ -464,7 +446,7 @@ class UpdateService extends ChangeNotifier {
 
     return {
       'currentVersion': VersionService.formatVersion(
-        _currentVersion ?? '1.0.0',
+        _currentVersion ?? '1.0.6',
       ),
       'newVersion': VersionService.formatVersion(_availableUpdate!.version),
       'fileSize': VersionService.formatFileSize(_availableUpdate!.fileSize),
