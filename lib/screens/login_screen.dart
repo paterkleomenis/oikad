@@ -289,6 +289,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                   ),
                 ),
+                const SizedBox(height: 32),
+
+                // Version display
+                Center(
+                  child: Text(
+                    'v1.0.7',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withOpacity(0.5)
+                          : Colors.grey.shade600,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 16),
               ],
             ),
