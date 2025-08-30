@@ -274,7 +274,6 @@ class UpdateService extends ChangeNotifier {
         }
 
         // Method 3: Try with different URI scheme
-
         try {
           final fileName = _downloadPath!.split('/').last;
           final contentUri = Uri.parse(
@@ -303,7 +302,6 @@ class UpdateService extends ChangeNotifier {
         }
 
         // If all automatic methods fail, the file is still downloaded
-
         // Return true because download succeeded
         return true;
       } else {
@@ -341,44 +339,6 @@ class UpdateService extends ChangeNotifier {
 
       // Request permissions only if not granted
       final storageResult = await Permission.storage.request();
-
-      return storageResult.isGranted || storageResult.isLimited;
-    } catch (e) {
-      debugPrint('Error requesting permissions: $e');
-      return false;
-    }
-  }
-
-  /// Check existing permissions without requesting
-  Future<bool> _checkExistingPermissions() async {
-    try {
-      final storageStatus = await Permission.storage.status;
-      final isGranted = storageStatus.isGranted || storageStatus.isLimited;
-      debugPrint(
-        'Storage permissions check: $storageStatus (granted: $isGranted)',
-      );
-      return isGranted;
-    } catch (e) {
-      debugPrint('Error checking permissions: $e');
-      return false;
-    }
-  }
-
-  /// Request storage permissions once and cache the result
-  Future<bool> _requestStoragePermissions() async {
-    try {
-      // Check if permissions are already granted
-      final storageStatus = await Permission.storage.status;
-      if (storageStatus.isGranted || storageStatus.isLimited) {
-        debugPrint('Storage permissions already granted');
-        return true;
-      }
-
-      // Request permissions only if not granted
-      debugPrint('Requesting storage permissions...');
-      final storageResult = await Permission.storage.request();
-      debugPrint('Storage permission result: $storageResult');
-
       return storageResult.isGranted || storageResult.isLimited;
     } catch (e) {
       debugPrint('Error requesting permissions: $e');
