@@ -157,18 +157,12 @@ class UpdateService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Request storage permission on Android (only if not already granted)
-      if (Platform.isAndroid && !_permissionsGranted) {
-        _permissionsGranted = await _requestStoragePermissions();
-        if (!_permissionsGranted) {
-          throw Exception('Storage permissions denied');
-        }
-      }
-
-      // Get download directory
+      // Get download directory (no permissions needed for app-specific storage)
       final directory = await _getDownloadDirectory();
       final fileName = _getFileName();
       _downloadPath = '${directory.path}/$fileName';
+
+      debugPrint('Downloading to: $_downloadPath');
 
       // Download the file
       await _dio.download(
@@ -181,6 +175,8 @@ class UpdateService extends ChangeNotifier {
           }
         },
       );
+
+      debugPrint('Download completed successfully');
 
       // Install the downloaded file
       return await _installDownloadedFile();
@@ -197,19 +193,18 @@ class UpdateService extends ChangeNotifier {
   /// Get appropriate download directory
   Future<Directory> _getDownloadDirectory() async {
     if (Platform.isAndroid) {
+      // Use app-specific external storage (no permissions needed on Android 10+)
       try {
-        // Try external storage first
-        final externalDir = await getExternalStorageDirectory();
-        if (externalDir != null) {
-          return externalDir;
-        }
+        final appDir = await getApplicationDocumentsDirectory();
+        debugPrint('Using app documents directory: ${appDir.path}');
+        return appDir;
       } catch (e) {
-        debugPrint('External storage not available: $e');
+        debugPrint('App documents directory not available: $e');
+        // Fallback to internal storage
+        final tempDir = await getTemporaryDirectory();
+        debugPrint('Using temporary directory: ${tempDir.path}');
+        return tempDir;
       }
-
-      // Fallback to app documents directory
-      final appDir = await getApplicationDocumentsDirectory();
-      return appDir;
     } else {
       return await getDownloadsDirectory() ??
           await getApplicationDocumentsDirectory();
@@ -243,26 +238,14 @@ class UpdateService extends ChangeNotifier {
       return false;
     }
 
+    final fileSize = await file.length();
+    debugPrint('Installing APK: $_downloadPath (${fileSize} bytes)');
+
     try {
       if (Platform.isAndroid) {
-        // For Android, try multiple installation methods
-
-        // Method 1: Use Android platform channel for direct installation
-        try {
-          const platform = MethodChannel('com.example.oikad/installer');
-          final result = await platform.invokeMethod('installApk', {
-            'filePath': _downloadPath,
-          });
-
-          if (result == true) {
-            return true;
-          }
-        } catch (e) {
-          debugPrint('Platform channel installation failed: $e');
-        }
-
-        // Method 2: Try to open with file manager/installer
+        // For Android, use simple file URI launch
         final uri = Uri.file(_downloadPath!);
+        debugPrint('Launching APK with URI: $uri');
 
         final success = await launchUrl(
           uri,
@@ -270,39 +253,27 @@ class UpdateService extends ChangeNotifier {
         );
 
         if (success) {
+          debugPrint('APK launched successfully');
           return true;
         }
 
-        // Method 3: Try with different URI scheme
+        // If direct launch fails, try platform channel
         try {
-          final fileName = _downloadPath!.split('/').last;
-          final contentUri = Uri.parse(
-            'content://com.example.oikad.fileprovider/$fileName',
-          );
-          final success2 = await launchUrl(
-            contentUri,
-            mode: LaunchMode.externalApplication,
-          );
+          const platform = MethodChannel('com.example.oikad/installer');
+          final result = await platform.invokeMethod('installApk', {
+            'filePath': _downloadPath,
+          });
 
-          if (success2) {
+          if (result == true) {
+            debugPrint('APK installed via platform channel');
             return true;
           }
         } catch (e) {
-          debugPrint('FileProvider URI method failed: $e');
+          debugPrint('Platform channel installation failed: $e');
         }
 
-        // Method 4: Open Downloads folder for manual installation
-        try {
-          final downloadsUri = Uri.parse(
-            'content://com.android.externalstorage.documents/document/primary:Download',
-          );
-          await launchUrl(downloadsUri, mode: LaunchMode.externalApplication);
-        } catch (e) {
-          debugPrint('Could not open Downloads folder: $e');
-        }
-
-        // If all automatic methods fail, the file is still downloaded
-        // Return true because download succeeded
+        // Download succeeded even if auto-install failed
+        debugPrint('APK download completed. File saved at: $_downloadPath');
         return true;
       } else {
         // For desktop platforms, open the installer
@@ -319,30 +290,23 @@ class UpdateService extends ChangeNotifier {
   /// Check existing permissions without requesting
   Future<bool> _checkExistingPermissions() async {
     try {
-      final storageStatus = await Permission.storage.status;
-      final isGranted = storageStatus.isGranted || storageStatus.isLimited;
-      return isGranted;
+      // On Android 10+ (API 29+), app-specific storage doesn't need permissions
+      // Only return true since we're using app-specific directories
+      return true;
     } catch (e) {
       debugPrint('Error checking permissions: $e');
-      return false;
+      return true; // Default to true for app-specific storage
     }
   }
 
   /// Request storage permissions once and cache the result
   Future<bool> _requestStoragePermissions() async {
     try {
-      // Check if permissions are already granted
-      final storageStatus = await Permission.storage.status;
-      if (storageStatus.isGranted || storageStatus.isLimited) {
-        return true;
-      }
-
-      // Request permissions only if not granted
-      final storageResult = await Permission.storage.request();
-      return storageResult.isGranted || storageResult.isLimited;
+      // No permissions needed for app-specific storage on modern Android
+      return true;
     } catch (e) {
       debugPrint('Error requesting permissions: $e');
-      return false;
+      return true; // Default to true for app-specific storage
     }
   }
 
