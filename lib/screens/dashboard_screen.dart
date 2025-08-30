@@ -323,26 +323,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ).colorScheme.onSurface.withOpacity(0.7),
                                   ),
                             ),
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.green),
-                              ),
-                              child: Text(
-                                'v1.0.3',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: Colors.green.shade700,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                              ),
-                            ),
                           ],
                         ),
                       ),

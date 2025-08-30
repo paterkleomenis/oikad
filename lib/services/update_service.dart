@@ -26,6 +26,7 @@ class UpdateService extends ChangeNotifier {
   double _downloadProgress = 0.0;
   String? _downloadPath;
   String? _currentVersion;
+  bool _permissionsGranted = false;
 
   // Getters
   AppUpdate? get availableUpdate => _availableUpdate;
@@ -38,6 +39,9 @@ class UpdateService extends ChangeNotifier {
   /// Initialize the update service
   Future<void> initialize() async {
     await _loadCurrentVersion();
+    if (Platform.isAndroid) {
+      _permissionsGranted = await _checkExistingPermissions();
+    }
     await _schedulePeriodicCheck();
   }
 
@@ -176,17 +180,11 @@ class UpdateService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Request storage permission on Android
-      if (Platform.isAndroid) {
-        // Request multiple permissions for Android 13+
-        final permissions = [
-          Permission.storage,
-          Permission.manageExternalStorage,
-        ];
-
-        for (final permission in permissions) {
-          final status = await permission.request();
-          debugPrint('Permission $permission status: $status');
+      // Request storage permission on Android (only if not already granted)
+      if (Platform.isAndroid && !_permissionsGranted) {
+        _permissionsGranted = await _requestStoragePermissions();
+        if (!_permissionsGranted) {
+          throw Exception('Storage permissions denied');
         }
       }
 
@@ -366,6 +364,43 @@ class UpdateService extends ChangeNotifier {
       debugPrint('File still available at: $_downloadPath');
       // Return true because download succeeded
       return true;
+    }
+  }
+
+  /// Check existing permissions without requesting
+  Future<bool> _checkExistingPermissions() async {
+    try {
+      final storageStatus = await Permission.storage.status;
+      final isGranted = storageStatus.isGranted || storageStatus.isLimited;
+      debugPrint(
+        'Storage permissions check: $storageStatus (granted: $isGranted)',
+      );
+      return isGranted;
+    } catch (e) {
+      debugPrint('Error checking permissions: $e');
+      return false;
+    }
+  }
+
+  /// Request storage permissions once and cache the result
+  Future<bool> _requestStoragePermissions() async {
+    try {
+      // Check if permissions are already granted
+      final storageStatus = await Permission.storage.status;
+      if (storageStatus.isGranted || storageStatus.isLimited) {
+        debugPrint('Storage permissions already granted');
+        return true;
+      }
+
+      // Request permissions only if not granted
+      debugPrint('Requesting storage permissions...');
+      final storageResult = await Permission.storage.request();
+      debugPrint('Storage permission result: $storageResult');
+
+      return storageResult.isGranted || storageResult.isLimited;
+    } catch (e) {
+      debugPrint('Error requesting permissions: $e');
+      return false;
     }
   }
 
