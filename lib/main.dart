@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'notifiers.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -12,6 +13,14 @@ import 'widgets/update_checker.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables
+  try {
+    await dotenv.load(fileName: ".env");
+    debugPrint('Environment variables loaded successfully');
+  } catch (e) {
+    debugPrint('No .env file found or error loading: $e');
+  }
 
   // Try to initialize Supabase if credentials are available
   try {

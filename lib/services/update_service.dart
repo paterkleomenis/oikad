@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/app_update.dart';
 import 'version_service.dart';
 
@@ -18,8 +19,8 @@ class UpdateService extends ChangeNotifier {
   static const String _lastCheckKey = 'last_update_check';
   static const String _skipVersionKey = 'skip_version';
   static const String _autoCheckKey = 'auto_check_updates';
-  static const String? _githubToken =
-      'YOUR_TOKEN_HERE';
+  // GitHub token loaded from environment variable
+  static String? get _githubToken => dotenv.env['GITHUB_TOKEN'];
   final Dio _dio = Dio();
   AppUpdate? _availableUpdate;
   bool _isChecking = false;
@@ -49,14 +50,27 @@ class UpdateService extends ChangeNotifier {
     debugPrint('✅ UpdateService: Initialization completed');
   }
 
+  /// Load GitHub token from secure storage
+  Future<String?> _loadGitHubToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('github_token');
+    } catch (e) {
+      debugPrint('Error loading GitHub token: $e');
+      return null;
+    }
+  }
+
   /// Configure Dio with authentication headers if token is available
   Future<void> _configureDio() async {
     debugPrint('🔧 Configuring GitHub API authentication...');
-    debugPrint(
-      '🔑 Token available: ${_githubToken != null && _githubToken!.isNotEmpty}',
-    );
-    if (_githubToken != null && _githubToken!.isNotEmpty) {
-      _dio.options.headers['Authorization'] = 'Bearer $_githubToken';
+
+    // Try to load token from secure storage first, fallback to hardcoded
+    final token = await _loadGitHubToken() ?? _githubToken;
+
+    debugPrint('🔑 Token available: ${token != null && token.isNotEmpty}');
+    if (token != null && token.isNotEmpty) {
+      _dio.options.headers['Authorization'] = 'Bearer $token';
       _dio.options.headers['Accept'] = 'application/vnd.github.v3+json';
       debugPrint(
         '✅ GitHub API configured with authentication (5000 requests/hour)',
@@ -66,6 +80,17 @@ class UpdateService extends ChangeNotifier {
       debugPrint(
         '⚠️ GitHub API configured without authentication (60 requests/hour - rate limited)',
       );
+    }
+  }
+
+  /// Set GitHub token securely
+  Future<void> setGitHubToken(String token) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('github_token', token);
+      debugPrint('GitHub token saved securely');
+    } catch (e) {
+      debugPrint('Error saving GitHub token: $e');
     }
   }
 
