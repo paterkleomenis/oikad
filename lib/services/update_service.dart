@@ -18,7 +18,8 @@ class UpdateService extends ChangeNotifier {
   static const String _lastCheckKey = 'last_update_check';
   static const String _skipVersionKey = 'skip_version';
   static const String _autoCheckKey = 'auto_check_updates';
-
+  static const String? _githubToken =
+      'YOUR_TOKEN_HERE';
   final Dio _dio = Dio();
   AppUpdate? _availableUpdate;
   bool _isChecking = false;
@@ -38,11 +39,34 @@ class UpdateService extends ChangeNotifier {
 
   /// Initialize the update service
   Future<void> initialize() async {
+    debugPrint('🚀 UpdateService: Starting initialization...');
     await _loadCurrentVersion();
+    await _configureDio();
     if (Platform.isAndroid) {
       _permissionsGranted = await _checkExistingPermissions();
     }
     await _schedulePeriodicCheck();
+    debugPrint('✅ UpdateService: Initialization completed');
+  }
+
+  /// Configure Dio with authentication headers if token is available
+  Future<void> _configureDio() async {
+    debugPrint('🔧 Configuring GitHub API authentication...');
+    debugPrint(
+      '🔑 Token available: ${_githubToken != null && _githubToken!.isNotEmpty}',
+    );
+    if (_githubToken != null && _githubToken!.isNotEmpty) {
+      _dio.options.headers['Authorization'] = 'Bearer $_githubToken';
+      _dio.options.headers['Accept'] = 'application/vnd.github.v3+json';
+      debugPrint(
+        '✅ GitHub API configured with authentication (5000 requests/hour)',
+      );
+    } else {
+      _dio.options.headers['Accept'] = 'application/vnd.github.v3+json';
+      debugPrint(
+        '⚠️ GitHub API configured without authentication (60 requests/hour - rate limited)',
+      );
+    }
   }
 
   /// Load current app version
