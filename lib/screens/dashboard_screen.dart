@@ -3,10 +3,13 @@ import 'package:provider/provider.dart';
 import '../notifiers.dart';
 import '../services/localization_service.dart';
 import '../services/auth_service.dart';
+import '../services/update_service.dart';
 import '../widgets/widgets.dart';
+import '../widgets/update_checker.dart';
+import '../widgets/update_dialog.dart';
 import 'registration_screen.dart';
 import 'documents_screen.dart';
-
+import 'settings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -205,18 +208,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-
               const SizedBox(width: 8),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert),
                 onSelected: (value) {
                   switch (value) {
+                    case 'settings':
+                      _openSettings();
+                      break;
+                    case 'check_updates':
+                      _checkForUpdates();
+                      break;
                     case 'sign_out':
                       _signOut();
                       break;
                   }
                 },
                 itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'settings',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.settings),
+                        const SizedBox(width: 8),
+                        Text(t(locale, 'settings')),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'check_updates',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.system_update),
+                        const SizedBox(width: 8),
+                        Text(t(locale, 'check_updates')),
+                      ],
+                    ),
+                  ),
                   PopupMenuItem(
                     value: 'sign_out',
                     child: Row(
@@ -240,6 +268,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Update notification banner
+              const UpdateNotificationBanner(),
+
               // Welcome Header
               Card(
                 child: Padding(
@@ -588,7 +619,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: TextButton(
                 onPressed: () => Navigator.pop(context),
                 style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(context).brightness == Brightness.dark
+                  foregroundColor:
+                      Theme.of(context).brightness == Brightness.dark
                       ? const Color(0xFF64B5F6)
                       : Theme.of(context).primaryColor,
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -690,6 +722,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const DocumentsScreen()),
+    );
+  }
+
+  Future<void> _checkForUpdates() async {
+    final updateService = context.read<UpdateService>();
+
+    try {
+      final hasUpdate = await updateService.checkForUpdates();
+
+      if (hasUpdate && mounted) {
+        final update = updateService.availableUpdate;
+        if (update != null) {
+          await showUpdateDialog(context, update);
+        }
+      } else if (mounted) {
+        final locale = context.read<LocaleNotifier>().locale;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(t(locale, 'no_updates_available')),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final locale = context.read<LocaleNotifier>().locale;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(t(locale, 'update_check_failed')),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  void _openSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SettingsScreen()),
     );
   }
 }

@@ -7,6 +7,8 @@ import 'screens/welcome_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'services/config_service.dart';
 import 'services/auth_service.dart';
+import 'services/update_service.dart';
+import 'widgets/update_checker.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +32,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => LocaleNotifier()),
         ChangeNotifierProvider(create: (_) => ThemeNotifier()),
         ChangeNotifierProvider(create: (_) => CompletionNotifier()),
+        ChangeNotifierProvider(create: (_) => UpdateService()..initialize()),
       ],
       child: const MyApp(),
     ),
@@ -56,7 +59,7 @@ class MyApp extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          home: const AuthWrapper(),
+          home: const UpdateChecker(child: AuthWrapper()),
         );
       },
     );
