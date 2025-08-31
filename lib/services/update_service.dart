@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:open_file/open_file.dart';
 import '../models/app_update.dart';
 import 'version_service.dart';
 
@@ -292,38 +293,13 @@ class UpdateService extends ChangeNotifier {
 
     try {
       if (Platform.isAndroid) {
-        // For Android, use simple file URI launch
-        final uri = Uri.file(_downloadPath!);
-        debugPrint('Launching APK with URI: $uri');
-
-        final success = await launchUrl(
-          uri,
-          mode: LaunchMode.externalApplication,
+        // For Android, use open_file to prompt user to install APK
+        final result = await OpenFile.open(_downloadPath!);
+        debugPrint(
+          'OpenFile result: ${result.type}, message: ${result.message}',
         );
-
-        if (success) {
-          debugPrint('APK launched successfully');
-          return true;
-        }
-
-        // If direct launch fails, try platform channel
-        try {
-          const platform = MethodChannel('com.example.oikad/installer');
-          final result = await platform.invokeMethod('installApk', {
-            'filePath': _downloadPath,
-          });
-
-          if (result == true) {
-            debugPrint('APK installed via platform channel');
-            return true;
-          }
-        } catch (e) {
-          debugPrint('Platform channel installation failed: $e');
-        }
-
-        // Download succeeded even if auto-install failed
-        debugPrint('APK download completed. File saved at: $_downloadPath');
-        return true;
+        // Success means the installer was launched, not that the app was updated
+        return result.type == ResultType.done;
       } else {
         // For desktop platforms, open the installer
         final uri = Uri.file(_downloadPath!);
