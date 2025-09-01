@@ -509,9 +509,14 @@ class UpdateDialog extends StatelessWidget {
               // Force retry with aggressive settings
               updateService.forceCheckForUpdates(clearSkipped: false).then((
                 hasUpdate,
-              ) {
+              ) async {
                 if (hasUpdate) {
-                  updateService.downloadAndInstall(context);
+                  final success = await updateService.downloadAndInstall(
+                    context,
+                  );
+                  if (success && context.mounted) {
+                    Navigator.of(context).pop();
+                  }
                 }
               });
             },
