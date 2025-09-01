@@ -103,7 +103,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               : const Icon(Icons.cloud_download),
                           title: Text(t(locale, 'check_updates')),
                           subtitle: _isCheckingUpdates
-                              ? const Text('Checking for updates...')
+                              ? Text(t(locale, 'tap_to_check'))
                               : updateService.hasUpdate
                               ? Text(
                                   '${t(locale, 'update_available')}: v${updateService.availableUpdate!.version}',
@@ -404,7 +404,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final locale = context.read<LocaleNotifier>().locale;
 
     try {
-      final hasUpdate = await updateService.checkForUpdates(silent: false);
+      // Add timeout to prevent infinite loading
+      final hasUpdate = await updateService
+          .checkForUpdates(silent: false)
+          .timeout(const Duration(seconds: 30));
 
       if (mounted) {
         setState(() {
@@ -420,6 +423,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(t(locale, 'no_updates_available')),
+              backgroundColor: Colors.green,
               duration: const Duration(seconds: 2),
             ),
           );
