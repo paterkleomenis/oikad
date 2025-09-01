@@ -198,7 +198,7 @@ class LocalizationService {
       'quick_actions': 'Quick Actions',
       'recent_documents': 'Recent Documents',
       'view_all': 'View All',
-      'dashboard_subtitle': 'Manage your student registration and documents',
+      'dashboard_subtitle': '',
       'completed_tasks': 'Completed Tasks',
       'pending_tasks': 'Pending Tasks',
       'no_completed_tasks': 'No completed tasks yet',
@@ -473,8 +473,7 @@ class LocalizationService {
       'quick_actions': 'Γρήγορες Ενέργειες',
       'recent_documents': 'Πρόσφατα Δικαιολογητικά',
       'view_all': 'Προβολή Όλων',
-      'dashboard_subtitle':
-          'Διαχειριστείτε την εγγραφή και τα δικαιολογητικά σας',
+      'dashboard_subtitle': '',
       'completed_tasks': 'Ολοκληρωμένα Καθήκοντα',
       'pending_tasks': 'Εκκρεμή Καθήκοντα',
       'no_completed_tasks': 'Δεν υπάρχουν ολοκληρωμένα καθήκοντα',
