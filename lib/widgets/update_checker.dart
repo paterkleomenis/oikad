@@ -103,17 +103,7 @@ class _UpdateCheckerState extends State<UpdateChecker>
   Widget build(BuildContext context) {
     return Consumer<UpdateService>(
       builder: (context, updateService, child) {
-        return Stack(
-          children: [
-            widget.child,
-            if (updateService.isChecking)
-              const Positioned(
-                top: 50,
-                right: 16,
-                child: UpdateCheckingIndicator(),
-              ),
-          ],
-        );
+        return widget.child;
       },
     );
   }

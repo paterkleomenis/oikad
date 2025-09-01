@@ -726,7 +726,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final updateService = context.read<UpdateService>();
 
     try {
-      final hasUpdate = await updateService.checkForUpdates();
+      // Add timeout to prevent infinite loading
+      final hasUpdate = await updateService.checkForUpdates().timeout(
+        const Duration(seconds: 30),
+      );
 
       if (hasUpdate && mounted) {
         final update = updateService.availableUpdate;
