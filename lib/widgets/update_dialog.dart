@@ -22,9 +22,8 @@ Future<void> openInstallPermissionSettings(BuildContext context) async {
 
 class UpdateDialog extends StatelessWidget {
   final AppUpdate update;
-  final bool canSkip;
 
-  const UpdateDialog({super.key, required this.update, this.canSkip = true});
+  const UpdateDialog({super.key, required this.update});
 
   @override
   Widget build(BuildContext context) {
@@ -288,19 +287,6 @@ class UpdateDialog extends StatelessWidget {
   ) {
     final buttons = <Widget>[];
 
-    // Skip button (only if allowed and not forced)
-    if (canSkip && !update.isForced) {
-      buttons.add(
-        TextButton(
-          onPressed: () {
-            updateService.skipCurrentVersion();
-            Navigator.of(context).pop();
-          },
-          child: const Text('Skip'),
-        ),
-      );
-    }
-
     // Later button (only if not forced)
     if (!update.isForced) {
       buttons.add(
@@ -507,9 +493,7 @@ class UpdateDialog extends StatelessWidget {
             onPressed: () {
               Navigator.of(context).pop();
               // Force retry with aggressive settings
-              updateService.forceCheckForUpdates(clearSkipped: false).then((
-                hasUpdate,
-              ) async {
+              updateService.forceCheckForUpdates().then((hasUpdate) async {
                 if (hasUpdate) {
                   final success = await updateService.downloadAndInstall(
                     context,
@@ -588,16 +572,12 @@ Generated: ${DateTime.now().toIso8601String()}
 }
 
 /// Show update dialog helper function
-Future<void> showUpdateDialog(
-  BuildContext context,
-  AppUpdate update, {
-  bool canSkip = true,
-}) async {
+Future<void> showUpdateDialog(BuildContext context, AppUpdate update) async {
   return showDialog<void>(
     context: context,
     barrierDismissible: !update.isForced,
     builder: (BuildContext context) {
-      return UpdateDialog(update: update, canSkip: canSkip);
+      return UpdateDialog(update: update);
     },
   );
 }

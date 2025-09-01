@@ -21,7 +21,7 @@ class UpdateService extends ChangeNotifier {
       dotenv.env['GITHUB_REPO_URL'] ??
       'https://api.github.com/repos/paterkleomenis/oikad/releases';
   static const String _lastCheckKey = 'last_update_check';
-  static const String _skipVersionKey = 'skip_version';
+
   static const String _autoCheckKey = 'auto_check_updates';
   // GitHub token loaded from environment variable
   static String? get _githubToken => dotenv.env['GITHUB_TOKEN'];
@@ -208,22 +208,18 @@ class UpdateService extends ChangeNotifier {
                       _currentVersion!,
                       update.version,
                     )) {
-                  // Check if user has skipped this version
+                  // Always show updates (no skip functionality)
+                  _availableUpdate = update;
+
+                  // Save last check time
                   final prefs = await SharedPreferences.getInstance();
-                  final skippedVersion = prefs.getString(_skipVersionKey);
+                  await prefs.setInt(
+                    _lastCheckKey,
+                    DateTime.now().millisecondsSinceEpoch,
+                  );
 
-                  if (skippedVersion != update.version || update.isForced) {
-                    _availableUpdate = update;
-
-                    // Save last check time
-                    await prefs.setInt(
-                      _lastCheckKey,
-                      DateTime.now().millisecondsSinceEpoch,
-                    );
-
-                    hasUpdate = true;
-                    break; // Exit the retry loop
-                  }
+                  notifyListeners();
+                  return true;
                 }
               } catch (parseError) {
                 debugPrint('Error parsing update from release: $parseError');
@@ -715,16 +711,6 @@ class UpdateService extends ChangeNotifier {
     return await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  /// Skip current update version
-  Future<void> skipCurrentVersion() async {
-    if (_availableUpdate != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_skipVersionKey, _availableUpdate!.version);
-      _availableUpdate = null;
-      notifyListeners();
-    }
-  }
-
   /// Clear available update
   void clearUpdate() {
     _availableUpdate = null;
@@ -894,12 +880,8 @@ class UpdateService extends ChangeNotifier {
     }
   }
 
-  /// Force check for updates ignoring skip preferences and with aggressive retry
-  Future<bool> forceCheckForUpdates({bool clearSkipped = true}) async {
-    if (clearSkipped) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_skipVersionKey);
-    }
+  /// Force check for updates with aggressive retry
+  Future<bool> forceCheckForUpdates() async {
     return await checkForUpdates(retryCount: 5);
   }
 

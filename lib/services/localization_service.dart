@@ -254,7 +254,7 @@ class LocalizationService {
       'install_update': 'Install Update',
       'update_now': 'Update Now',
       'update_later': 'Later',
-      'skip_update': 'Skip',
+
       'downloading_update': 'Downloading Update...',
       'update_downloaded': 'Update downloaded successfully',
       'update_failed': 'Update failed',
@@ -530,7 +530,7 @@ class LocalizationService {
       'install_update': 'Εγκατάσταση Ενημέρωσης',
       'update_now': 'Ενημέρωση Τώρα',
       'update_later': 'Αργότερα',
-      'skip_update': 'Παράλειψη',
+
       'downloading_update': 'Λήψη Ενημέρωσης...',
       'update_downloaded': 'Η ενημέρωση ολοκληρώθηκε επιτυχώς',
       'update_failed': 'Η ενημέρωση απέτυχε',
