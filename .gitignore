@@ -48,6 +48,82 @@ app.*.map.json
 .env
 .env.local
 .env.production
+.env.staging
+.env.development
 *.env
 config.local.dart
 secrets.dart
+
+# API Keys and Security Files - NEVER COMMIT THESE
+**/secrets/
+**/*.key
+**/*.pem
+**/*.p12
+**/*.jks
+**/*.keystore
+key.properties
+google-services.json
+GoogleService-Info.plist
+
+# Signing certificates and configs
+signing/
+keystore/
+release.keystore
+debug.keystore
+
+# Local configuration files
+local.properties
+gradle.properties
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.project
+.metadata
+.settings/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Build and cache directories
+node_modules/
+.gradle/
+local.properties
+*.log
+*.cache
+
+# Flutter specific
+.flutter-plugins-dependencies
+.packages
+.pub/
+build/
+.dart_tool/packages
+
+# Test coverage
+coverage/
+test/coverage/
+lcov.info
+
+# Documentation
+doc/
+docs/build/
+
+# Backup files
+*.backup
+*.bak
+*.orig

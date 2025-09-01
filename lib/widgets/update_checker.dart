@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/update_service.dart';
@@ -48,14 +51,39 @@ class _UpdateCheckerState extends State<UpdateChecker>
     // Check for updates when app comes to foreground
     if (state == AppLifecycleState.resumed && widget.autoCheck) {
       _checkForUpdates();
+      // Also refresh install permission status on Android
+      if (Platform.isAndroid) {
+        _refreshInstallPermission();
+      }
+    }
+  }
+
+  Future<void> _refreshInstallPermission() async {
+    try {
+      final updateService = context.read<UpdateService>();
+      await updateService.refreshInstallPermission();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error refreshing install permission: $e');
+      }
     }
   }
 
   Future<void> _checkForUpdates() async {
     final updateService = context.read<UpdateService>();
 
+    if (kDebugMode) {
+      debugPrint('UpdateChecker: Starting silent update check');
+    }
+
     try {
       final hasUpdate = await updateService.checkForUpdates(silent: true);
+
+      if (kDebugMode) {
+        debugPrint(
+          'UpdateChecker: Silent update check completed, hasUpdate: $hasUpdate',
+        );
+      }
 
       if (hasUpdate && mounted) {
         final update = updateService.availableUpdate;
@@ -65,7 +93,9 @@ class _UpdateCheckerState extends State<UpdateChecker>
         }
       }
     } catch (e) {
-      debugPrint('Error checking for updates: $e');
+      if (kDebugMode) {
+        debugPrint('UpdateChecker: Error checking for updates: $e');
+      }
     }
   }
 

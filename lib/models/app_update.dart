@@ -11,6 +11,9 @@ class AppUpdate {
   final List<String> features;
   final List<String> bugFixes;
   final String minRequiredVersion;
+  final String? checksum;
+  final String? checksumType;
+  final Map<String, dynamic> metadata;
 
   const AppUpdate({
     required this.version,
@@ -25,12 +28,16 @@ class AppUpdate {
     this.features = const [],
     this.bugFixes = const [],
     this.minRequiredVersion = '1.0.0',
+    this.checksum,
+    this.checksumType = 'sha256',
+    this.metadata = const {},
   });
 
   factory AppUpdate.fromGitHubRelease(Map<String, dynamic> json) {
     final assets = json['assets'] as List<dynamic>? ?? [];
     String downloadUrl = '';
     int fileSize = 0;
+    String? checksum;
 
     // Find the appropriate asset for the current platform
     for (final asset in assets) {
@@ -46,7 +53,15 @@ class AppUpdate {
       }
     }
 
+    // Look for checksum in release body or assets
     final body = json['body'] as String? ?? '';
+    final checksumMatch = RegExp(
+      r'(?:sha256|SHA256):\s*([a-fA-F0-9]{64})',
+    ).firstMatch(body);
+    if (checksumMatch != null) {
+      checksum = checksumMatch.group(1);
+    }
+
     final features = <String>[];
     final bugFixes = <String>[];
 
@@ -74,6 +89,15 @@ class AppUpdate {
         }
       }
     }
+
+    // Extract additional metadata
+    final metadata = <String, dynamic>{
+      'prerelease': json['prerelease'] as bool? ?? false,
+      'draft': json['draft'] as bool? ?? false,
+      'html_url': json['html_url'] as String? ?? '',
+      'author': json['author']?['login'] as String? ?? '',
+      'release_id': json['id'] as int? ?? 0,
+    };
 
     // Clean version string to handle different formats
     String cleanVersion = (json['tag_name'] as String? ?? '').replaceFirst(
@@ -103,12 +127,26 @@ class AppUpdate {
       ),
       isForced:
           body.toLowerCase().contains('critical') ||
-          body.toLowerCase().contains('security'),
+          body.toLowerCase().contains('security') ||
+          body.toLowerCase().contains('forced'),
       isCritical: body.toLowerCase().contains('critical'),
       features: features,
       bugFixes: bugFixes,
+      checksum: checksum,
+      checksumType: 'sha256',
+      metadata: metadata,
     );
   }
 
   bool get hasDownload => downloadUrl.isNotEmpty;
+
+  bool get hasChecksum => checksum != null && checksum!.isNotEmpty;
+
+  bool get isPrerelease => metadata['prerelease'] as bool? ?? false;
+
+  bool get isDraft => metadata['draft'] as bool? ?? false;
+
+  String get releaseUrl => metadata['html_url'] as String? ?? '';
+
+  String get author => metadata['author'] as String? ?? '';
 }

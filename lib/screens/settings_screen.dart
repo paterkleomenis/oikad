@@ -1,9 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../notifiers.dart';
 import '../services/localization_service.dart';
 import '../services/update_service.dart';
-
+import '../utils/app_info.dart';
 import '../widgets/update_dialog.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _autoCheckUpdates = true;
+  bool _isCheckingUpdates = false;
 
   String t(String locale, String key) => LocalizationService.t(locale, key);
 
@@ -80,44 +82,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.info_outline),
                       title: Text(t(locale, 'current_version')),
-                      subtitle: Text(updateService.currentVersion ?? '1.0.0'),
+                      subtitle: Text(
+                        updateService.currentVersion ?? AppInfo.version,
+                      ),
                     ),
 
                     // Check for Updates Button
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: updateService.isChecking
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.cloud_download),
-                      title: Text(t(locale, 'check_updates')),
-                      subtitle: updateService.hasUpdate
-                          ? Text(
-                              '${t(locale, 'update_available')}: v${updateService.availableUpdate!.version}',
-                              style: TextStyle(
-                                color: Theme.of(context).primaryColor,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
-                          : Text(t(locale, 'no_updates_available')),
-                      trailing: updateService.hasUpdate
-                          ? Badge(
-                              backgroundColor: Colors.red,
-                              child: Icon(
-                                Icons.arrow_forward_ios,
-                                size: 16,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                            )
-                          : Icon(
-                              Icons.arrow_forward_ios,
-                              size: 16,
-                              color: Theme.of(context).primaryColor,
-                            ),
-                      onTap: updateService.isChecking ? null : _checkForUpdates,
+                    Consumer<UpdateService>(
+                      builder: (context, updateService, child) {
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: _isCheckingUpdates
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.cloud_download),
+                          title: Text(t(locale, 'check_updates')),
+                          subtitle: _isCheckingUpdates
+                              ? const Text('Checking for updates...')
+                              : updateService.hasUpdate
+                              ? Text(
+                                  '${t(locale, 'update_available')}: v${updateService.availableUpdate!.version}',
+                                  style: TextStyle(
+                                    color: Theme.of(context).primaryColor,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
+                              : Text(t(locale, 'no_updates_available')),
+                          trailing: updateService.hasUpdate
+                              ? Badge(
+                                  backgroundColor: Colors.red,
+                                  child: Icon(
+                                    Icons.arrow_forward_ios,
+                                    size: 16,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.arrow_forward_ios,
+                                  size: 16,
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                          onTap: _isCheckingUpdates ? null : _checkForUpdates,
+                        );
+                      },
                     ),
 
                     // Auto-check Updates Toggle
@@ -354,7 +366,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.code),
                       title: const Text('Version'),
-                      subtitle: Text(updateService.currentVersion ?? '1.0.0'),
+                      subtitle: Text(
+                        updateService.currentVersion ?? AppInfo.version,
+                      ),
                     ),
 
                     ListTile(
@@ -380,27 +394,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _checkForUpdates() async {
+    if (_isCheckingUpdates) return;
+
+    setState(() {
+      _isCheckingUpdates = true;
+    });
+
     final updateService = context.read<UpdateService>();
     final locale = context.read<LocaleNotifier>().locale;
 
     try {
-      final hasUpdate = await updateService.checkForUpdates();
+      final hasUpdate = await updateService.checkForUpdates(silent: false);
 
-      if (hasUpdate && mounted) {
-        final update = updateService.availableUpdate;
-        if (update != null) {
-          await showUpdateDialog(context, update);
+      if (mounted) {
+        setState(() {
+          _isCheckingUpdates = false;
+        });
+
+        if (hasUpdate) {
+          final update = updateService.availableUpdate;
+          if (update != null) {
+            await showUpdateDialog(context, update);
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(t(locale, 'no_updates_available')),
+              duration: const Duration(seconds: 2),
+            ),
+          );
         }
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(t(locale, 'no_updates_available')),
-            duration: const Duration(seconds: 2),
-          ),
-        );
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _isCheckingUpdates = false;
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(t(locale, 'update_check_failed')),

@@ -1,5 +1,7 @@
+import '../utils/app_info.dart';
+
 class LocalizationService {
-  static const Map<String, Map<String, String>> _translations = {
+  static Map<String, Map<String, String>> get _translations => {
     'en': {
       // Basic UI
       'register': 'Register',
@@ -238,7 +240,9 @@ class LocalizationService {
       'browse_as_guest': 'Browse as Guest',
       'guest_mode_info':
           'In guest mode, you can view documents but cannot upload or submit them. Create an account to access all features.',
-      'app_version': 'Version 1.0.0',
+      'app_version': AppInfo.isInitialized
+          ? AppInfo.displayVersion
+          : 'Version 1.1.1',
       'terms_of_service': 'Terms of Service',
 
       // Update System
@@ -512,7 +516,9 @@ class LocalizationService {
       'browse_as_guest': 'Περιήγηση ως Επισκέπτης',
       'guest_mode_info':
           'Στη λειτουργία επισκέπτη, μπορείτε να δείτε τα δικαιολογητικά αλλά δεν μπορείτε να ανεβάσετε ή να υποβάλετε. Δημιουργήστε λογαριασμό για πρόσβαση σε όλες τις λειτουργίες.',
-      'app_version': 'Έκδοση 1.0.0',
+      'app_version': AppInfo.isInitialized
+          ? 'Έκδοση ${AppInfo.version}'
+          : 'Έκδοση 1.1.1',
       'terms_of_service': 'Όροι Χρήσης',
 
       // Update System

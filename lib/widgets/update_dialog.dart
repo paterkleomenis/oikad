@@ -1,8 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:android_intent_plus/flag.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/app_update.dart';
 import '../services/update_service.dart';
 import '../services/version_service.dart';
+
+Future<void> openInstallPermissionSettings(BuildContext context) async {
+  final packageInfo = await PackageInfo.fromPlatform();
+  final pkgName = packageInfo.packageName;
+  final intent = AndroidIntent(
+    action: 'android.settings.MANAGE_UNKNOWN_APP_SOURCES',
+    data: 'package:$pkgName',
+    flags: [Flag.FLAG_ACTIVITY_NEW_TASK],
+  );
+  await intent.launch();
+}
 
 class UpdateDialog extends StatelessWidget {
   final AppUpdate update;
@@ -301,7 +317,7 @@ class UpdateDialog extends StatelessWidget {
     buttons.add(
       FilledButton(
         onPressed: () async {
-          final success = await updateService.downloadAndInstall();
+          final success = await updateService.downloadAndInstall(context);
           if (success && context.mounted) {
             Navigator.of(context).pop();
             _showUpdateSuccessDialog(context);
@@ -335,7 +351,9 @@ class UpdateDialog extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('The update has been downloaded successfully.'),
+            const Text(
+              'The update has been downloaded and verified successfully.',
+            ),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -358,6 +376,14 @@ class UpdateDialog extends StatelessWidget {
                     '3. Tap to install (enable "Unknown sources" if needed)',
                   ),
                   Text('4. Follow the installation prompts'),
+                  SizedBox(height: 8),
+                  Text(
+                    '✅ File integrity verified',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -374,41 +400,99 @@ class UpdateDialog extends StatelessWidget {
   }
 
   void _showUpdateErrorDialog(BuildContext context) {
+    final updateService = context.read<UpdateService>();
+    final diagnosticInfo = updateService.getDiagnosticInfo();
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         icon: const Icon(Icons.error, color: Colors.red, size: 48),
         title: const Text('Update Failed'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Failed to download or install the update.'),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Failed to download or install the update.'),
+              const SizedBox(height: 16),
+
+              // Diagnostic Information
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '📊 Diagnostic Information:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Current Version: ${diagnosticInfo['currentVersion']}',
+                    ),
+                    Text('Package: ${diagnosticInfo['packageName']}'),
+                    Text(
+                      'Install Permission: ${diagnosticInfo['installPermissionGranted']}',
+                    ),
+                    if (diagnosticInfo['availableUpdate'] != null) ...[
+                      Text(
+                        'Update Version: ${diagnosticInfo['availableUpdate']['version']}',
+                      ),
+                      Text(
+                        'File Size: ${(diagnosticInfo['availableUpdate']['fileSize'] / (1024 * 1024)).toStringAsFixed(1)} MB',
+                      ),
+                      Text(
+                        'Has Checksum: ${diagnosticInfo['availableUpdate']['hasChecksum']}',
+                      ),
+                    ],
+                  ],
+                ),
               ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '🔧 Troubleshooting:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 8),
-                  Text('• Check internet connection'),
-                  Text('• Ensure sufficient storage space'),
-                  Text('• Enable "Install from unknown sources"'),
-                  Text('• Try downloading manually from GitHub'),
-                ],
+
+              const SizedBox(height: 16),
+
+              // Troubleshooting Steps
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '🔧 Troubleshooting Steps:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 8),
+                    Text('• Check internet connection'),
+                    Text('• Ensure sufficient storage space (50+ MB)'),
+                    Text('• Enable "Install from unknown sources"'),
+                    Text('• Clear app cache if download fails'),
+                    Text('• Try downloading on WiFi if using mobile data'),
+                    Text('• Restart the app and try again'),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
+          TextButton(
+            onPressed: () => _copyDiagnosticInfo(context, diagnosticInfo),
+            child: const Text('Copy Info'),
+          ),
+          TextButton(
+            onPressed: () => _openManualDownload(context),
+            child: const Text('Manual Download'),
+          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Close'),
@@ -416,15 +500,79 @@ class UpdateDialog extends StatelessWidget {
           FilledButton(
             onPressed: () {
               Navigator.of(context).pop();
-              // Try the update again
-              final updateService = context.read<UpdateService>();
-              updateService.downloadAndInstall();
+              // Force retry with aggressive settings
+              updateService.forceCheckForUpdates(clearSkipped: false).then((
+                hasUpdate,
+              ) {
+                if (hasUpdate) {
+                  updateService.downloadAndInstall(context);
+                }
+              });
             },
-            child: const Text('Try Again'),
+            child: const Text('Force Retry'),
           ),
         ],
       ),
     );
+  }
+
+  /// Copy diagnostic information to clipboard
+  void _copyDiagnosticInfo(BuildContext context, Map<String, dynamic> info) {
+    final diagnosticText =
+        '''
+OIKAD Update Diagnostic Information
+==================================
+Current Version: ${info['currentVersion']}
+Package Name: ${info['packageName']}
+Has Update Available: ${info['hasUpdate']}
+Install Permission Granted: ${info['installPermissionGranted']}
+Is Checking: ${info['isChecking']}
+Is Downloading: ${info['isDownloading']}
+Download Progress: ${(info['downloadProgress'] * 100).toStringAsFixed(1)}%
+
+${info['availableUpdate'] != null ? '''
+Available Update Details:
+- Version: ${info['availableUpdate']['version']}
+- Download URL: ${info['availableUpdate']['downloadUrl']}
+- File Size: ${info['availableUpdate']['fileSize']} bytes
+- Has Checksum: ${info['availableUpdate']['hasChecksum']}
+- Is Forced: ${info['availableUpdate']['isForced']}
+- Is Critical: ${info['availableUpdate']['isCritical']}
+''' : 'No update available'}
+
+Generated: ${DateTime.now().toIso8601String()}
+''';
+
+    Clipboard.setData(ClipboardData(text: diagnosticText));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Diagnostic information copied to clipboard'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// Open manual download page
+  void _openManualDownload(BuildContext context) async {
+    final updateService = context.read<UpdateService>();
+    final update = updateService.availableUpdate;
+
+    if (update != null && update.releaseUrl.isNotEmpty) {
+      try {
+        final uri = Uri.parse(update.releaseUrl);
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } catch (e) {
+        // Fallback to GitHub releases page
+        const fallbackUrl = 'https://github.com/paterkleomenis/oikad/releases';
+        final uri = Uri.parse(fallbackUrl);
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } else {
+      // Fallback to GitHub releases page
+      const fallbackUrl = 'https://github.com/paterkleomenis/oikad/releases';
+      final uri = Uri.parse(fallbackUrl);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 }
 

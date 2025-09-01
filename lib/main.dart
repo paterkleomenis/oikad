@@ -9,10 +9,14 @@ import 'screens/dashboard_screen.dart';
 import 'services/config_service.dart';
 import 'services/auth_service.dart';
 import 'services/update_service.dart';
+import 'utils/app_info.dart';
 import 'widgets/update_checker.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize app info
+  await AppInfo.initialize();
 
   // Load environment variables
   try {

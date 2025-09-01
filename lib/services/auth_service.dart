@@ -24,10 +24,7 @@ class AuthService {
   }) async {
     try {
       if (kDebugMode) {
-        print('Attempting to register user: $email');
-        print('Full name: $fullName');
-        print('Phone: $phone');
-        print('ID Card: $idCardNumber');
+        print('Attempting to register new user');
       }
 
       // Validate input
@@ -67,8 +64,7 @@ class AuthService {
       }
 
       if (kDebugMode) {
-        print('User registered successfully: ${response.user!.id}');
-        print('Email confirmed: ${response.user!.emailConfirmedAt != null}');
+        print('User registered successfully');
       }
 
       // Create student profile in database
@@ -131,7 +127,7 @@ class AuthService {
   }) async {
     try {
       if (kDebugMode) {
-        print('Attempting to sign in user: $email');
+        print('Attempting to sign in user');
       }
 
       // Validate input

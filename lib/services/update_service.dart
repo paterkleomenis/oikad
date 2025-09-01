@@ -1,21 +1,24 @@
 import 'dart:io';
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:open_file/open_file.dart';
+import 'package:android_intent_plus/android_intent.dart';
 import '../models/app_update.dart';
+import '../utils/app_info.dart';
+import '../utils/debug_config.dart';
 import 'version_service.dart';
 
 class UpdateService extends ChangeNotifier {
-  static const String _githubRepoUrl =
+  static String get _githubRepoUrl =>
+      dotenv.env['GITHUB_REPO_URL'] ??
       'https://api.github.com/repos/paterkleomenis/oikad/releases';
   static const String _lastCheckKey = 'last_update_check';
   static const String _skipVersionKey = 'skip_version';
@@ -29,7 +32,8 @@ class UpdateService extends ChangeNotifier {
   double _downloadProgress = 0.0;
   String? _downloadPath;
   String? _currentVersion;
-  bool _permissionsGranted = false;
+  String? _packageName;
+  bool _installPermissionGranted = false;
 
   // Getters
   AppUpdate? get availableUpdate => _availableUpdate;
@@ -38,17 +42,22 @@ class UpdateService extends ChangeNotifier {
   double get downloadProgress => _downloadProgress;
   bool get hasUpdate => _availableUpdate != null;
   String? get currentVersion => _currentVersion;
+  bool get installPermissionGranted => _installPermissionGranted;
 
   /// Initialize the update service
   Future<void> initialize() async {
-    debugPrint('🚀 UpdateService: Starting initialization...');
+    DebugConfig.debugPrint('Starting initialization...', tag: 'UpdateService');
     await _loadCurrentVersion();
+    await _loadPackageName();
     await _configureDio();
+
     if (Platform.isAndroid) {
-      _permissionsGranted = await _checkExistingPermissions();
+      await _checkInstallPermission();
     }
+
     await _schedulePeriodicCheck();
-    debugPrint('✅ UpdateService: Initialization completed');
+    await _cleanupOldUpdateFiles();
+    DebugConfig.debugPrint('Initialization completed', tag: 'UpdateService');
   }
 
   /// Load GitHub token from secure storage
@@ -57,29 +66,32 @@ class UpdateService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('github_token');
     } catch (e) {
-      debugPrint('Error loading GitHub token: $e');
+      DebugConfig.logError(
+        'Error loading GitHub token',
+        tag: 'UpdateService',
+        error: e,
+      );
       return null;
     }
   }
 
   /// Configure Dio with authentication headers if token is available
   Future<void> _configureDio() async {
-    debugPrint('🔧 Configuring GitHub API authentication...');
-
     // Try to load token from secure storage first, fallback to hardcoded
     final token = await _loadGitHubToken() ?? _githubToken;
 
-    debugPrint('🔑 Token available: ${token != null && token.isNotEmpty}');
     if (token != null && token.isNotEmpty) {
       _dio.options.headers['Authorization'] = 'Bearer $token';
       _dio.options.headers['Accept'] = 'application/vnd.github.v3+json';
-      debugPrint(
-        '✅ GitHub API configured with authentication (5000 requests/hour)',
+      DebugConfig.debugPrint(
+        'GitHub API configured with authentication',
+        tag: 'UpdateService',
       );
     } else {
       _dio.options.headers['Accept'] = 'application/vnd.github.v3+json';
-      debugPrint(
-        '⚠️ GitHub API configured without authentication (60 requests/hour - rate limited)',
+      DebugConfig.logWarning(
+        'GitHub API configured without authentication (rate limited)',
+        tag: 'UpdateService',
       );
     }
   }
@@ -89,9 +101,16 @@ class UpdateService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('github_token', token);
-      debugPrint('GitHub token saved securely');
+      DebugConfig.debugPrint(
+        'GitHub token saved securely',
+        tag: 'UpdateService',
+      );
     } catch (e) {
-      debugPrint('Error saving GitHub token: $e');
+      DebugConfig.logError(
+        'Error saving GitHub token',
+        tag: 'UpdateService',
+        error: e,
+      );
     }
   }
 
@@ -101,8 +120,31 @@ class UpdateService extends ChangeNotifier {
       final packageInfo = await PackageInfo.fromPlatform();
       _currentVersion = packageInfo.version;
     } catch (e) {
-      debugPrint('Error loading package info: $e');
-      _currentVersion = '1.0.0'; // Fallback version
+      DebugConfig.logError(
+        'Error loading package info',
+        tag: 'UpdateService',
+        error: e,
+      );
+      _currentVersion = AppInfo.version; // Fallback version
+    }
+  }
+
+  /// Load package name
+  Future<void> _loadPackageName() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      _packageName = packageInfo.packageName;
+      DebugConfig.debugPrint(
+        'Package name: $_packageName',
+        tag: 'UpdateService',
+      );
+    } catch (e) {
+      DebugConfig.logError(
+        'Error loading package name',
+        tag: 'UpdateService',
+        error: e,
+      );
+      _packageName = AppInfo.packageName; // Fallback package name
     }
   }
 
@@ -123,69 +165,112 @@ class UpdateService extends ChangeNotifier {
     }
   }
 
-  /// Check for available updates
-  Future<bool> checkForUpdates({bool silent = false}) async {
-    if (_isChecking) return false;
+  /// Check for available updates with retry mechanism
+  Future<bool> checkForUpdates({
+    bool silent = false,
+    int retryCount = 3,
+  }) async {
+    if (_isChecking) {
+      DebugConfig.debugPrint(
+        'Already checking for updates, skipping',
+        tag: 'UpdateService',
+      );
+      return false;
+    }
+
+    DebugConfig.debugPrint('Starting update check', tag: 'UpdateService');
 
     _isChecking = true;
     if (!silent) notifyListeners();
 
+    bool hasUpdate = false;
+
     try {
-      final response = await _dio.get(_githubRepoUrl);
+      for (int attempt = 0; attempt < retryCount; attempt++) {
+        try {
+          final response = await _dio
+              .get(_githubRepoUrl)
+              .timeout(const Duration(seconds: 30));
 
-      if (response.statusCode == 200) {
-        final releases = response.data as List<dynamic>;
+          if (response.statusCode == 200) {
+            final releases = response.data as List<dynamic>;
 
-        if (releases.isNotEmpty) {
-          final latestRelease = releases.first as Map<String, dynamic>;
+            if (releases.isNotEmpty) {
+              final latestRelease = releases.first as Map<String, dynamic>;
 
-          try {
-            final update = AppUpdate.fromGitHubRelease(latestRelease);
+              try {
+                final update = AppUpdate.fromGitHubRelease(latestRelease);
 
-            if (_currentVersion != null &&
-                VersionService.isNewerVersion(
-                  _currentVersion!,
-                  update.version,
-                )) {
-              // Check if user has skipped this version
-              final prefs = await SharedPreferences.getInstance();
-              final skippedVersion = prefs.getString(_skipVersionKey);
+                if (_currentVersion != null &&
+                    VersionService.isNewerVersion(
+                      _currentVersion!,
+                      update.version,
+                    )) {
+                  // Check if user has skipped this version
+                  final prefs = await SharedPreferences.getInstance();
+                  final skippedVersion = prefs.getString(_skipVersionKey);
 
-              if (skippedVersion != update.version || update.isForced) {
-                _availableUpdate = update;
+                  if (skippedVersion != update.version || update.isForced) {
+                    _availableUpdate = update;
 
-                // Save last check time
-                await prefs.setInt(
-                  _lastCheckKey,
-                  DateTime.now().millisecondsSinceEpoch,
-                );
+                    // Save last check time
+                    await prefs.setInt(
+                      _lastCheckKey,
+                      DateTime.now().millisecondsSinceEpoch,
+                    );
 
-                if (!silent) notifyListeners();
-                return true;
+                    hasUpdate = true;
+                    break; // Exit the retry loop
+                  }
+                }
+              } catch (parseError) {
+                debugPrint('Error parsing update from release: $parseError');
               }
             }
-          } catch (parseError) {
-            debugPrint('Error parsing update from release: $parseError');
           }
+
+          // If we reach here, no update was found
+          _availableUpdate = null;
+          break; // Exit the retry loop
+        } catch (e) {
+          if (e is DioException) {
+            if (e.response?.statusCode == 403) {
+              DebugConfig.logWarning(
+                'GitHub API rate limit exceeded',
+                tag: 'UpdateService',
+              );
+              break; // Don't retry rate limit errors
+            }
+          }
+
+          if (attempt == retryCount - 1) {
+            DebugConfig.logError(
+              'Error checking for updates after $retryCount attempts',
+              tag: 'UpdateService',
+              error: e,
+            );
+            _availableUpdate = null;
+            break; // Exit the retry loop
+          }
+
+          // Wait before retry with exponential backoff
+          await Future.delayed(Duration(seconds: 2 * (attempt + 1)));
         }
       }
-
-      _availableUpdate = null;
-      if (!silent) notifyListeners();
-      return false;
-    } catch (e) {
-      debugPrint('Error checking for updates: $e');
-      _availableUpdate = null;
-      if (!silent) notifyListeners();
-      return false;
     } finally {
+      DebugConfig.debugPrint(
+        'Finishing update check, hasUpdate: $hasUpdate',
+        tag: 'UpdateService',
+      );
       _isChecking = false;
       if (!silent) notifyListeners();
     }
+
+    return hasUpdate;
   }
 
-  /// Download and install update
-  Future<bool> downloadAndInstall() async {
+  /// Download and install update with fallback mechanisms
+  Future<bool> downloadAndInstall([BuildContext? context]) async {
     if (_availableUpdate == null ||
         !_availableUpdate!.hasDownload ||
         _isDownloading) {
@@ -197,62 +282,180 @@ class UpdateService extends ChangeNotifier {
       return await _openAppStore();
     }
 
-    return await _downloadAndInstallUpdate();
+    // For Android, check install permission first
+    if (Platform.isAndroid && context != null) {
+      final hasPermission = await requestInstallPermission(context);
+      if (!hasPermission) {
+        if (kDebugMode) {
+          debugPrint(
+            'Install permission not granted, cannot proceed with update',
+          );
+        }
+        return false;
+      }
+    }
+
+    // Try primary download with retries
+    bool success = await _downloadAndInstallUpdate();
+
+    if (!success && context != null) {
+      // Fallback: direct browser download
+      if (kDebugMode) {
+        debugPrint('Primary download failed, trying fallback browser download');
+      }
+      success = await _fallbackBrowserDownload();
+    }
+
+    return success;
   }
 
-  /// Download and install update for Android/Desktop
-  Future<bool> _downloadAndInstallUpdate() async {
+  /// Fallback: open download URL in browser
+  Future<bool> _fallbackBrowserDownload() async {
+    try {
+      final uri = Uri.parse(_availableUpdate!.downloadUrl);
+      return await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      DebugConfig.logError(
+        'Fallback browser download failed',
+        tag: 'UpdateService',
+        error: e,
+      );
+      return false;
+    }
+  }
+
+  /// Download and install update for Android/Desktop with retry mechanism
+  Future<bool> _downloadAndInstallUpdate({int retryCount = 3}) async {
     _isDownloading = true;
     _downloadProgress = 0.0;
     notifyListeners();
 
-    try {
-      // Get download directory (no permissions needed for app-specific storage)
-      final directory = await _getDownloadDirectory();
-      final fileName = _getFileName();
-      _downloadPath = '${directory.path}/$fileName';
+    for (int attempt = 0; attempt < retryCount; attempt++) {
+      try {
+        // Get download directory (no permissions needed for app-specific storage)
+        final directory = await getDownloadDirectory();
+        final fileName = _getFileName();
+        _downloadPath = '${directory.path}/$fileName';
 
-      debugPrint('Downloading to: $_downloadPath');
+        DebugConfig.debugPrint(
+          'Download attempt ${attempt + 1}/$retryCount to: $_downloadPath',
+          tag: 'UpdateService',
+        );
 
-      // Download the file
-      await _dio.download(
-        _availableUpdate!.downloadUrl,
-        _downloadPath,
-        onReceiveProgress: (received, total) {
-          if (total != -1) {
-            _downloadProgress = received / total;
-            notifyListeners();
+        // Remove existing file if it exists
+        final existingFile = File(_downloadPath!);
+        if (await existingFile.exists()) {
+          await existingFile.delete();
+        }
+
+        // Download the file with timeout and progress tracking
+        await _dio.download(
+          _availableUpdate!.downloadUrl,
+          _downloadPath,
+          options: Options(
+            receiveTimeout: const Duration(minutes: 10),
+            sendTimeout: const Duration(minutes: 5),
+          ),
+          onReceiveProgress: (received, total) {
+            if (total != -1) {
+              _downloadProgress = received / total;
+              notifyListeners();
+
+              if (DebugConfig.enableVerboseLogging &&
+                  received % (1024 * 1024) == 0) {
+                // Log progress every MB
+                DebugConfig.debugPrint(
+                  'Download progress: ${(received / total * 100).toStringAsFixed(1)}%',
+                  tag: 'UpdateService',
+                );
+              }
+            }
+          },
+        );
+
+        DebugConfig.debugPrint(
+          'Download completed successfully on attempt ${attempt + 1}',
+          tag: 'UpdateService',
+        );
+
+        // Verify the downloaded file
+        final isValid = await _verifyDownloadedFile(_downloadPath!);
+        if (!isValid) {
+          DebugConfig.logError(
+            'Downloaded file verification failed on attempt ${attempt + 1}',
+            tag: 'UpdateService',
+          );
+          if (attempt < retryCount - 1) {
+            continue; // Retry download
           }
-        },
-      );
+          return false;
+        }
 
-      debugPrint('Download completed successfully');
+        // For Android, recheck permission before installing
+        if (Platform.isAndroid) {
+          await _checkInstallPermission();
+          if (!_installPermissionGranted) {
+            DebugConfig.logWarning(
+              'Install permission lost during download, cannot install',
+              tag: 'UpdateService',
+            );
+            return false;
+          }
+        }
 
-      // Install the downloaded file
-      return await _installDownloadedFile();
-    } catch (e) {
-      debugPrint('Error downloading/installing update: $e');
-      return false;
-    } finally {
-      _isDownloading = false;
-      _downloadProgress = 0.0;
-      notifyListeners();
+        // Install the downloaded file
+        return await _installDownloadedFile();
+      } catch (e) {
+        DebugConfig.logError(
+          'Download attempt ${attempt + 1} failed',
+          tag: 'UpdateService',
+          error: e,
+        );
+
+        if (attempt == retryCount - 1) {
+          DebugConfig.logError(
+            'All download attempts failed',
+            tag: 'UpdateService',
+            error: e,
+          );
+          return false;
+        }
+
+        // Wait before retry with exponential backoff
+        await Future.delayed(Duration(seconds: 2 * (attempt + 1)));
+
+        // Reset progress for retry
+        _downloadProgress = 0.0;
+        notifyListeners();
+      }
     }
+
+    return false;
   }
 
   /// Get appropriate download directory
-  Future<Directory> _getDownloadDirectory() async {
+  Future<Directory> getDownloadDirectory() async {
     if (Platform.isAndroid) {
       // Use app-specific external storage (no permissions needed on Android 10+)
       try {
         final appDir = await getApplicationDocumentsDirectory();
-        debugPrint('Using app documents directory: ${appDir.path}');
+        DebugConfig.debugPrint(
+          'Using app documents directory: ${appDir.path}',
+          tag: 'UpdateService',
+        );
         return appDir;
       } catch (e) {
-        debugPrint('App documents directory not available: $e');
+        DebugConfig.logError(
+          'App documents directory not available',
+          tag: 'UpdateService',
+          error: e,
+        );
         // Fallback to internal storage
         final tempDir = await getTemporaryDirectory();
-        debugPrint('Using temporary directory: ${tempDir.path}');
+        DebugConfig.debugPrint(
+          'Using temporary directory: ${tempDir.path}',
+          tag: 'UpdateService',
+        );
         return tempDir;
       }
     } else {
@@ -275,6 +478,158 @@ class UpdateService extends ChangeNotifier {
     return 'oikad_${_availableUpdate!.version}';
   }
 
+  /// Check if install unknown apps permission is granted
+  Future<void> _checkInstallPermission() async {
+    if (!Platform.isAndroid) return;
+
+    try {
+      // Check if we can install packages from unknown sources
+      _installPermissionGranted = await _canInstallFromUnknownSources();
+
+      DebugConfig.debugPrint(
+        'Install permission granted: $_installPermissionGranted',
+        tag: 'UpdateService',
+      );
+    } catch (e) {
+      DebugConfig.logError(
+        'Error checking install permission',
+        tag: 'UpdateService',
+        error: e,
+      );
+      _installPermissionGranted = false;
+    }
+  }
+
+  /// Check if app can install packages from unknown sources
+  Future<bool> _canInstallFromUnknownSources() async {
+    if (!Platform.isAndroid) return true;
+
+    try {
+      // For Android 8.0+ (API 26+), check REQUEST_INSTALL_PACKAGES permission
+      const platform = MethodChannel('flutter.dev/install_permission');
+      final result = await platform.invokeMethod('canRequestPackageInstalls');
+      return result as bool? ?? false;
+    } catch (e) {
+      // Fallback: assume permission is granted on older versions or if check fails
+      return true;
+    }
+  }
+
+  /// Request install unknown apps permission
+  Future<bool> requestInstallPermission(BuildContext context) async {
+    if (!Platform.isAndroid) return true;
+
+    try {
+      // Check current permission status
+      await _checkInstallPermission();
+
+      if (_installPermissionGranted) {
+        return true;
+      }
+
+      // Show dialog explaining why permission is needed
+      final shouldRequest = await _showInstallPermissionDialog(context);
+
+      if (!shouldRequest) {
+        return false;
+      }
+
+      // Open settings to allow user to grant permission
+      await _openInstallPermissionSettings();
+
+      // Wait a moment then recheck permission
+      await Future.delayed(const Duration(milliseconds: 500));
+      await _checkInstallPermission();
+
+      return _installPermissionGranted;
+    } catch (e) {
+      DebugConfig.logError(
+        'Error requesting install permission',
+        tag: 'UpdateService',
+        error: e,
+      );
+      return false;
+    }
+  }
+
+  /// Show dialog explaining install permission
+  Future<bool> _showInstallPermissionDialog(BuildContext context) async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: const Text('Permission Required'),
+            content: const Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'To install app updates automatically, OIKAD needs permission to install unknown apps.',
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'This is required only once. After granting permission, future updates will install seamlessly.',
+                ),
+                SizedBox(height: 16),
+                Text('Steps:'),
+                Text('1. Tap "Open Settings"'),
+                Text('2. Enable "Allow from this source"'),
+                Text('3. Return to the app'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Open Settings'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  /// Open Android settings for install unknown apps permission
+  Future<void> _openInstallPermissionSettings() async {
+    try {
+      // Try to open the specific app install settings
+      final intent = AndroidIntent(
+        action: 'android.settings.MANAGE_UNKNOWN_APP_SOURCES',
+        data: 'package:${_packageName ?? AppInfo.packageName}',
+      );
+      await intent.launch();
+    } catch (e) {
+      try {
+        // Fallback to general security settings
+        final intent = AndroidIntent(
+          action: 'android.settings.SECURITY_SETTINGS',
+        );
+        await intent.launch();
+      } catch (fallbackError) {
+        if (kDebugMode) {
+          debugPrint(
+            'Error opening install settings: $e, fallback: $fallbackError',
+          );
+        }
+        // Last resort: try to open app settings
+        try {
+          final appIntent = AndroidIntent(
+            action: 'android.settings.APPLICATION_DETAILS_SETTINGS',
+            data: 'package:${_packageName ?? AppInfo.packageName}',
+          );
+          await appIntent.launch();
+        } catch (finalError) {
+          if (kDebugMode) {
+            debugPrint('All settings launch attempts failed: $finalError');
+          }
+        }
+      }
+    }
+  }
+
   /// Install downloaded file
   Future<bool> _installDownloadedFile() async {
     if (_downloadPath == null) {
@@ -284,54 +639,65 @@ class UpdateService extends ChangeNotifier {
     // Verify file exists
     final file = File(_downloadPath!);
     if (!await file.exists()) {
-      debugPrint('Downloaded file not found at: $_downloadPath');
+      DebugConfig.logError(
+        'Downloaded file not found at: $_downloadPath',
+        tag: 'UpdateService',
+      );
       return false;
     }
 
     final fileSize = await file.length();
-    debugPrint('Installing APK: $_downloadPath (${fileSize} bytes)');
+    DebugConfig.debugPrint(
+      'Installing file: $_downloadPath (${fileSize} bytes)',
+      tag: 'UpdateService',
+    );
 
     try {
       if (Platform.isAndroid) {
+        // Final permission check before installation
+        if (!_installPermissionGranted) {
+          DebugConfig.logWarning(
+            'Install permission not granted, cannot install APK',
+            tag: 'UpdateService',
+          );
+          return false;
+        }
+
         // For Android, use open_file to prompt user to install APK
         final result = await OpenFile.open(_downloadPath!);
-        debugPrint(
-          'OpenFile result: ${result.type}, message: ${result.message}',
+        DebugConfig.debugPrint(
+          'OpenFile result: ${result.type}',
+          tag: 'UpdateService',
         );
-        // Success means the installer was launched, not that the app was updated
-        return result.type == ResultType.done;
+
+        // If result is done, the installer was launched successfully
+        if (result.type == ResultType.done) {
+          // Clear the update since installation was initiated
+          clearUpdate();
+          return true;
+        } else {
+          DebugConfig.logError(
+            'Failed to open APK installer: ${result.message}',
+            tag: 'UpdateService',
+          );
+          return false;
+        }
       } else {
         // For desktop platforms, open the installer
         final uri = Uri.file(_downloadPath!);
-        return await launchUrl(uri);
+        final success = await launchUrl(uri);
+        if (success) {
+          clearUpdate();
+        }
+        return success;
       }
     } catch (e) {
-      debugPrint('Error installing update: $e');
-      // Return true because download succeeded
-      return true;
-    }
-  }
-
-  /// Check existing permissions without requesting
-  Future<bool> _checkExistingPermissions() async {
-    try {
-      // On Android 10+ (API 29+), app-specific storage doesn't need permissions
-      // Only return true since we're using app-specific directories
-      return true;
-    } catch (e) {
-      debugPrint('Error checking permissions: $e');
-      return true; // Default to true for app-specific storage
-    }
-  }
-
-  /// Request storage permissions once and cache the result
-  Future<bool> _requestStoragePermissions() async {
-    try {
-      // No permissions needed for app-specific storage on modern Android
-      return true;
-    } catch (e) {
-      debugPrint('Error requesting permissions: $e');
-      return true; // Default to true for app-specific storage
+      DebugConfig.logError(
+        'Error installing update',
+        tag: 'UpdateService',
+        error: e,
+      );
+      return false;
     }
   }
 
@@ -382,11 +748,12 @@ class UpdateService extends ChangeNotifier {
     );
   }
 
-  /// Force check for updates (ignores skip preferences)
-  Future<bool> forceCheckForUpdates() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_skipVersionKey);
-    return await checkForUpdates();
+  /// Refresh install permission status
+  Future<void> refreshInstallPermission() async {
+    if (Platform.isAndroid) {
+      await _checkInstallPermission();
+      notifyListeners();
+    }
   }
 
   /// Get formatted update info
@@ -395,11 +762,161 @@ class UpdateService extends ChangeNotifier {
 
     return {
       'currentVersion': VersionService.formatVersion(
-        _currentVersion ?? '1.0.8',
+        _currentVersion ?? AppInfo.version,
       ),
       'newVersion': VersionService.formatVersion(_availableUpdate!.version),
       'fileSize': VersionService.formatFileSize(_availableUpdate!.fileSize),
       'severity': getUpdateSeverity().displayName,
+    };
+  }
+
+  /// Verify downloaded file integrity
+  Future<bool> _verifyDownloadedFile(String filePath) async {
+    try {
+      final file = File(filePath);
+
+      // Check file exists
+      if (!await file.exists()) {
+        debugPrint('Downloaded file not found: $filePath');
+        return false;
+      }
+
+      // Check file size matches expected
+      final actualSize = await file.length();
+      if (actualSize != _availableUpdate!.fileSize) {
+        DebugConfig.logError(
+          'File size mismatch: expected ${_availableUpdate!.fileSize}, got $actualSize',
+          tag: 'UpdateService',
+        );
+        return false;
+      }
+
+      // If checksum is available from release, verify it
+      if (_availableUpdate!.hasChecksum) {
+        final fileBytes = await file.readAsBytes();
+        final digest = sha256.convert(fileBytes);
+        final calculatedChecksum = digest.toString();
+
+        if (calculatedChecksum.toLowerCase() !=
+            _availableUpdate!.checksum!.toLowerCase()) {
+          DebugConfig.logError(
+            'Checksum verification failed. Expected: ${_availableUpdate!.checksum}, Got: $calculatedChecksum',
+            tag: 'UpdateService',
+          );
+          return false;
+        }
+
+        DebugConfig.debugPrint(
+          'File verification successful. Size: $actualSize, SHA-256: $calculatedChecksum',
+          tag: 'UpdateService',
+        );
+      } else {
+        // If no checksum available, just calculate for logging
+        final fileBytes = await file.readAsBytes();
+        final digest = sha256.convert(fileBytes);
+        final checksum = digest.toString();
+
+        DebugConfig.debugPrint(
+          'File verification completed (no checksum to verify). Size: $actualSize, SHA-256: $checksum',
+          tag: 'UpdateService',
+        );
+      }
+
+      return true;
+    } catch (e) {
+      DebugConfig.logError(
+        'Error verifying downloaded file',
+        tag: 'UpdateService',
+        error: e,
+      );
+      return false;
+    }
+  }
+
+  /// Clean up old update files
+  Future<void> _cleanupOldUpdateFiles() async {
+    try {
+      final directory = await getDownloadDirectory();
+      final files = directory.listSync();
+      int cleanedCount = 0;
+
+      for (final file in files) {
+        if (file is File &&
+            file.path.contains('oikad_') &&
+            (file.path.endsWith('.apk') ||
+                file.path.endsWith('.exe') ||
+                file.path.endsWith('.dmg') ||
+                file.path.endsWith('.deb') ||
+                file.path.endsWith('.rpm'))) {
+          final stat = await file.stat();
+          final daysSinceModified = DateTime.now()
+              .difference(stat.modified)
+              .inDays;
+
+          if (daysSinceModified > 7) {
+            // Clean files older than 7 days
+            try {
+              await file.delete();
+              cleanedCount++;
+              DebugConfig.debugPrint(
+                'Cleaned up old update file: ${file.path}',
+                tag: 'UpdateService',
+              );
+            } catch (deleteError) {
+              DebugConfig.logError(
+                'Failed to delete old update file ${file.path}',
+                tag: 'UpdateService',
+                error: deleteError,
+              );
+            }
+          }
+        }
+      }
+
+      if (cleanedCount > 0) {
+        DebugConfig.debugPrint(
+          'Cleanup completed: removed $cleanedCount old update files',
+          tag: 'UpdateService',
+        );
+      }
+    } catch (e) {
+      DebugConfig.logError(
+        'Error cleaning up old update files',
+        tag: 'UpdateService',
+        error: e,
+      );
+    }
+  }
+
+  /// Force check for updates ignoring skip preferences and with aggressive retry
+  Future<bool> forceCheckForUpdates({bool clearSkipped = true}) async {
+    if (clearSkipped) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_skipVersionKey);
+    }
+    return await checkForUpdates(retryCount: 5);
+  }
+
+  /// Get detailed error information for troubleshooting
+  Map<String, dynamic> getDiagnosticInfo() {
+    return {
+      'currentVersion': _currentVersion ?? 'Unknown',
+      'packageName': _packageName ?? 'Unknown',
+      'hasUpdate': hasUpdate,
+      'isChecking': isChecking,
+      'isDownloading': isDownloading,
+      'downloadProgress': downloadProgress,
+      'installPermissionGranted': installPermissionGranted,
+      'availableUpdate': _availableUpdate != null
+          ? {
+              'version': _availableUpdate!.version,
+              'downloadUrl': _availableUpdate!.downloadUrl,
+              'fileSize': _availableUpdate!.fileSize,
+              'hasChecksum': _availableUpdate!.hasChecksum,
+              'isForced': _availableUpdate!.isForced,
+              'isCritical': _availableUpdate!.isCritical,
+            }
+          : null,
     };
   }
 

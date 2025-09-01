@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../notifiers.dart';
@@ -47,12 +48,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final stats = await _loadUserStatistics();
 
       // Debug output to help troubleshoot
-      debugPrint('User profile loaded: $profile');
-      if (profile != null) {
-        debugPrint('Name: ${profile['name']}');
-        debugPrint('Family name: ${profile['family_name']}');
-        debugPrint('Full name: ${profile['full_name']}');
-        debugPrint('Email: ${AuthService.currentUser?.email}');
+      if (kDebugMode && profile != null) {
+        debugPrint('User profile loaded successfully');
       }
 
       if (mounted) {
