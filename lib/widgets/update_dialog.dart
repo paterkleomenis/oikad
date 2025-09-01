@@ -320,7 +320,6 @@ class UpdateDialog extends StatelessWidget {
           final success = await updateService.downloadAndInstall(context);
           if (success && context.mounted) {
             Navigator.of(context).pop();
-            _showUpdateSuccessDialog(context);
           } else if (context.mounted) {
             // Check if failure was due to permissions
             if (updateService.lastFailureWasPermission) {
