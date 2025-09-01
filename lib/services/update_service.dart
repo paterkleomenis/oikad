@@ -34,6 +34,7 @@ class UpdateService extends ChangeNotifier {
   String? _currentVersion;
   String? _packageName;
   bool _installPermissionGranted = false;
+  bool _lastFailureWasPermission = false;
 
   // Getters
   AppUpdate? get availableUpdate => _availableUpdate;
@@ -43,6 +44,7 @@ class UpdateService extends ChangeNotifier {
   bool get hasUpdate => _availableUpdate != null;
   String? get currentVersion => _currentVersion;
   bool get installPermissionGranted => _installPermissionGranted;
+  bool get lastFailureWasPermission => _lastFailureWasPermission;
 
   /// Initialize the update service
   Future<void> initialize() async {
@@ -291,9 +293,13 @@ class UpdateService extends ChangeNotifier {
             'Install permission not granted, cannot proceed with update',
           );
         }
+        _lastFailureWasPermission = true;
         return false;
       }
     }
+
+    // Reset permission failure flag if we get this far
+    _lastFailureWasPermission = false;
 
     // Try primary download with retries
     bool success = await _downloadAndInstallUpdate();

@@ -322,7 +322,14 @@ class UpdateDialog extends StatelessWidget {
             Navigator.of(context).pop();
             _showUpdateSuccessDialog(context);
           } else if (context.mounted) {
-            _showUpdateErrorDialog(context);
+            // Check if failure was due to permissions
+            if (updateService.lastFailureWasPermission) {
+              // Don't show error dialog for permission issues
+              // User will see the permission dialog and can try again
+              Navigator.of(context).pop();
+            } else {
+              _showUpdateErrorDialog(context);
+            }
           }
         },
         child: Text(update.isForced ? 'Update Now' : 'Update'),
