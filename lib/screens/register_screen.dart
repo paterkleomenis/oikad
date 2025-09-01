@@ -201,11 +201,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context); // Close dialog
-              Navigator.pushReplacement(
+              Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const DashboardScreen(),
                 ),
+                (route) => false,
               );
             },
             style: ElevatedButton.styleFrom(

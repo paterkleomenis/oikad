@@ -58,10 +58,11 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
 
-          // Navigate to dashboard
-          Navigator.pushReplacement(
+          // Navigate to dashboard and clear navigation stack
+          Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const DashboardScreen()),
+            (route) => false,
           );
         } else {
           // Show error message
