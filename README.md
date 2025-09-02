@@ -257,20 +257,6 @@ flutter build macos --release --dart-define-from-file=.env
 flutter build linux --release --dart-define-from-file=.env
 ```
 
-### Testing
-
-```bash
-# Run unit tests
-flutter test
-
-# Run integration tests
-flutter test integration_test/
-
-# Generate test coverage
-flutter test --coverage
-genhtml coverage/lcov.info -o coverage/html
-```
-
 ### Code Quality
 
 ```bash
@@ -283,15 +269,6 @@ flutter format .
 # Check for outdated dependencies
 flutter pub outdated
 ```
-
-### Debugging
-
-The app includes comprehensive debugging tools:
-
-- **Debug Menu**: Available in debug builds
-- **Error Reporting**: Structured error logging
-- **Performance Monitoring**: Flutter Inspector integration
-- **Network Debugging**: Request/response logging
 
 ---
 
@@ -371,30 +348,9 @@ jobs:
 
 ---
 
-## 📚 Documentation
-
-### API Documentation
-
-- [Supabase Integration Guide](docs/supabase-setup.md)
-- [Auto-Update System](docs/auto-update.md)
-- [Internationalization](docs/i18n.md)
-- [Security Guidelines](docs/security.md)
-
-### Code Documentation
-
-```bash
-# Generate documentation
-dart doc .
-
-# Serve documentation locally
-python -m http.server 8000 -d doc/api
-```
-
----
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
 ### Quick Start for Contributors
 
@@ -404,13 +360,6 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 4. **Test** thoroughly: `flutter test`
 5. **Submit** a pull request
 
-### Development Workflow
-
-- **Code Style**: Follow [Dart Style Guide](https://dart.dev/guides/language/effective-dart/style)
-- **Testing**: Add tests for new features
-- **Documentation**: Update docs for API changes
-- **Commit Messages**: Use [Conventional Commits](https://conventionalcommits.org/)
-
 ---
 
 ## 📄 License
@@ -419,52 +368,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 🙋‍♂️ Support
 
-### Getting Help
-
-- 📧 **Email**: support@oikad.app
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/paterkleomenis/oikad/issues)
-- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/paterkleomenis/oikad/discussions)
-- 📖 **Documentation**: [Wiki](https://github.com/paterkleomenis/oikad/wiki)
-
-### Community
-
-- 💬 **Discord**: [Join our server](https://discord.gg/oikad)
-- 🐦 **Twitter**: [@OikadApp](https://twitter.com/OikadApp)
-- 📱 **Telegram**: [OIKAD Support](https://t.me/oikad_support)
-
----
-
-## 🎯 Roadmap
-
-### Current Version (v1.1.1)
-- ✅ Core dormitory registration system
-- ✅ Document upload and management
-- ✅ Auto-update system
-- ✅ Multi-language support
-
-### Upcoming Features
-- 🔄 **v1.2.0**: Enhanced analytics and reporting
-- 🔄 **v1.3.0**: Mobile app for staff
-- 🔄 **v1.4.0**: Integration with university systems
-- 🔄 **v2.0.0**: Complete redesign with new features
-
----
-
-## ⭐ Acknowledgments
-
-- [Flutter Team](https://flutter.dev/) for the amazing framework
-- [Supabase](https://supabase.com/) for the backend infrastructure
-- [Material Design](https://material.io/) for design guidelines
-- All [contributors](https://github.com/paterkleomenis/oikad/contributors) who helped make this project better
-
----
-
-<div align="center">
-
-**Made with ❤️ by the OIKAD Team**
-
-If you find this project helpful, please consider giving it a ⭐ on GitHub!
-
-</div>
