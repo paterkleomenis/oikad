@@ -1,3 +1,5 @@
+import '../utils/debug_config.dart';
+
 class VersionService {
   /// Compare two version strings (e.g., "versionA" vs "versionB")
   /// Returns:
@@ -6,12 +8,33 @@ class VersionService {
   /// - positive if version1 > version2
   static int compareVersions(String version1, String version2) {
     // Remove any leading 'v' or 'V' and clean the strings
-    final v1 = version1.replaceFirst(RegExp(r'^[vV]'), '').split('+')[0];
-    final v2 = version2.replaceFirst(RegExp(r'^[vV]'), '').split('+')[0];
+    // Split by '+' to separate version from build number
+    final v1Clean = version1.replaceFirst(RegExp(r'^[vV]'), '');
+    final v2Clean = version2.replaceFirst(RegExp(r'^[vV]'), '');
+
+    // Extract version and build parts
+    final v1Parts = v1Clean.split('+');
+    final v2Parts = v2Clean.split('+');
+
+    final v1 = v1Parts[0]; // main version
+    final v2 = v2Parts[0]; // main version
+
+    final v1Build = v1Parts.length > 1 ? int.tryParse(v1Parts[1]) ?? 0 : 0;
+    final v2Build = v2Parts.length > 1 ? int.tryParse(v2Parts[1]) ?? 0 : 0;
+
+    DebugConfig.debugLog(
+      'Comparing versions: "$version1" vs "$version2" -> cleaned: "$v1" vs "$v2", builds: $v1Build vs $v2Build',
+      tag: 'VersionService',
+    );
 
     // Handle non-semantic versions by padding with zeros
     final parts1 = _parseVersionParts(v1);
     final parts2 = _parseVersionParts(v2);
+
+    DebugConfig.debugLog(
+      'Version parts: $parts1 vs $parts2',
+      tag: 'VersionService',
+    );
 
     // Pad shorter version with zeros
     final maxLength = parts1.length > parts2.length
@@ -24,17 +47,55 @@ class VersionService {
       parts2.add(0);
     }
 
+    // Compare main version parts first
     for (int i = 0; i < maxLength; i++) {
-      if (parts1[i] < parts2[i]) return -1;
-      if (parts1[i] > parts2[i]) return 1;
+      if (parts1[i] < parts2[i]) {
+        DebugConfig.debugLog(
+          'Version comparison result: $version1 < $version2 (at part $i: ${parts1[i]} < ${parts2[i]})',
+          tag: 'VersionService',
+        );
+        return -1;
+      }
+      if (parts1[i] > parts2[i]) {
+        DebugConfig.debugLog(
+          'Version comparison result: $version1 > $version2 (at part $i: ${parts1[i]} > ${parts2[i]})',
+          tag: 'VersionService',
+        );
+        return 1;
+      }
     }
 
+    // If main versions are equal, compare build numbers
+    if (v1Build < v2Build) {
+      DebugConfig.debugLog(
+        'Version comparison result: $version1 < $version2 (build: $v1Build < $v2Build)',
+        tag: 'VersionService',
+      );
+      return -1;
+    }
+    if (v1Build > v2Build) {
+      DebugConfig.debugLog(
+        'Version comparison result: $version1 > $version2 (build: $v1Build > $v2Build)',
+        tag: 'VersionService',
+      );
+      return 1;
+    }
+
+    DebugConfig.debugLog(
+      'Version comparison result: $version1 == $version2',
+      tag: 'VersionService',
+    );
     return 0;
   }
 
   /// Check if newVersion is newer than currentVersion
   static bool isNewerVersion(String currentVersion, String newVersion) {
-    return compareVersions(currentVersion, newVersion) < 0;
+    final result = compareVersions(currentVersion, newVersion) < 0;
+    DebugConfig.debugLog(
+      'isNewerVersion check: "$newVersion" newer than "$currentVersion"? $result',
+      tag: 'VersionService',
+    );
+    return result;
   }
 
   /// Check if current version meets minimum required version

@@ -25,6 +25,9 @@ class UpdateService extends ChangeNotifier {
   static const String _autoCheckKey = 'auto_check_updates';
   // GitHub token loaded from environment variable
   static String? get _githubToken => dotenv.env['GITHUB_TOKEN'];
+
+  // Debug override to force showing updates (for testing)
+  bool _debugForceShowUpdates = false;
   final Dio _dio = Dio();
   AppUpdate? _availableUpdate;
   bool _isChecking = false;
@@ -59,6 +62,14 @@ class UpdateService extends ChangeNotifier {
 
     await _schedulePeriodicCheck();
     await _cleanupOldUpdateFiles();
+
+    // Do an initial update check to populate status
+    DebugConfig.debugLog(
+      'Performing initial update check...',
+      tag: 'UpdateService',
+    );
+    await checkForUpdates(silent: true);
+
     DebugConfig.debugLog('Initialization completed', tag: 'UpdateService');
   }
 
@@ -118,6 +129,14 @@ class UpdateService extends ChangeNotifier {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       _currentVersion = packageInfo.version;
+      DebugConfig.debugLog(
+        'Current version loaded from PackageInfo: $_currentVersion',
+        tag: 'UpdateService',
+      );
+      DebugConfig.debugLog(
+        'Full package info - name: ${packageInfo.appName}, buildNumber: ${packageInfo.buildNumber}',
+        tag: 'UpdateService',
+      );
     } catch (e) {
       DebugConfig.logError(
         'Error loading package info',
@@ -125,6 +144,10 @@ class UpdateService extends ChangeNotifier {
         error: e,
       );
       _currentVersion = AppInfo.version; // Fallback version
+      DebugConfig.debugLog(
+        'Using fallback version from AppInfo: $_currentVersion',
+        tag: 'UpdateService',
+      );
     }
   }
 
@@ -197,13 +220,25 @@ class UpdateService extends ChangeNotifier {
               try {
                 final update = AppUpdate.fromGitHubRelease(latestRelease);
 
-                if (_currentVersion != null &&
+                DebugConfig.debugLog(
+                  'Checking if update is newer: current=$_currentVersion, latest=${update.version}',
+                  tag: 'UpdateService',
+                );
+
+                final isNewer =
+                    _currentVersion != null &&
                     VersionService.isNewerVersion(
                       _currentVersion!,
                       update.version,
-                    )) {
-                  // Always show updates (no skip functionality)
+                    );
+
+                if (isNewer || _debugForceShowUpdates) {
+                  // Show updates if newer OR if debug override is enabled
                   _availableUpdate = update;
+                  DebugConfig.debugLog(
+                    'Update found! Setting available update to version ${update.version} (isNewer: $isNewer, debugForce: $_debugForceShowUpdates)',
+                    tag: 'UpdateService',
+                  );
 
                   // Save last check time
                   final prefs = await SharedPreferences.getInstance();
@@ -214,9 +249,18 @@ class UpdateService extends ChangeNotifier {
 
                   notifyListeners();
                   return true;
+                } else {
+                  DebugConfig.debugLog(
+                    'No newer version found. Current: $_currentVersion, Latest: ${update.version}',
+                    tag: 'UpdateService',
+                  );
                 }
               } catch (parseError) {
-                debugPrint('Error parsing update from release: $parseError');
+                DebugConfig.logError(
+                  'Error parsing update from release',
+                  tag: 'UpdateService',
+                  error: parseError,
+                );
               }
             }
           }
@@ -875,12 +919,146 @@ class UpdateService extends ChangeNotifier {
     }
   }
 
-  /// Force check for updates with aggressive retry
-  Future<bool> forceCheckForUpdates() async {
-    return await checkForUpdates(retryCount: 5);
+  /// Debug method to manually test update checking
+  Future<Map<String, dynamic>> debugCheckUpdates() async {
+    try {
+      DebugConfig.debugLog(
+        'Debug: Starting manual update check',
+        tag: 'UpdateService',
+      );
+      DebugConfig.debugLog(
+        'Debug: Current version: $_currentVersion',
+        tag: 'UpdateService',
+      );
+      DebugConfig.debugLog(
+        'Debug: GitHub URL: $_githubRepoUrl',
+        tag: 'UpdateService',
+      );
+
+      final response = await _dio
+          .get(_githubRepoUrl)
+          .timeout(const Duration(seconds: 30));
+
+      DebugConfig.debugLog(
+        'Debug: GitHub API response status: ${response.statusCode}',
+        tag: 'UpdateService',
+      );
+
+      if (response.statusCode == 200) {
+        final releases = response.data as List<dynamic>;
+        DebugConfig.debugLog(
+          'Debug: Found ${releases.length} releases',
+          tag: 'UpdateService',
+        );
+
+        if (releases.isNotEmpty) {
+          final latestRelease = releases.first as Map<String, dynamic>;
+          final tagName = latestRelease['tag_name'] as String?;
+          final name = latestRelease['name'] as String?;
+          final publishedAt = latestRelease['published_at'] as String?;
+
+          DebugConfig.debugLog(
+            'Debug: Latest release tag: $tagName',
+            tag: 'UpdateService',
+          );
+          DebugConfig.debugLog(
+            'Debug: Latest release name: $name',
+            tag: 'UpdateService',
+          );
+          DebugConfig.debugLog(
+            'Debug: Published at: $publishedAt',
+            tag: 'UpdateService',
+          );
+
+          try {
+            final update = AppUpdate.fromGitHubRelease(latestRelease);
+            DebugConfig.debugLog(
+              'Debug: Parsed version: ${update.version}',
+              tag: 'UpdateService',
+            );
+            DebugConfig.debugLog(
+              'Debug: Download URL: ${update.downloadUrl}',
+              tag: 'UpdateService',
+            );
+
+            final isNewer = VersionService.isNewerVersion(
+              _currentVersion!,
+              update.version,
+            );
+            DebugConfig.debugLog(
+              'Debug: Is newer version? $isNewer',
+              tag: 'UpdateService',
+            );
+            DebugConfig.debugLog(
+              'Debug: Version comparison: $_currentVersion vs ${update.version}',
+              tag: 'UpdateService',
+            );
+
+            return {
+              'success': true,
+              'current_version': _currentVersion,
+              'latest_version': update.version,
+              'is_newer': isNewer,
+              'download_url': update.downloadUrl,
+              'tag_name': tagName,
+              'release_name': name,
+              'published_at': publishedAt,
+              'releases_count': releases.length,
+            };
+          } catch (parseError) {
+            DebugConfig.logError(
+              'Debug: Error parsing update',
+              tag: 'UpdateService',
+              error: parseError,
+            );
+            return {
+              'success': false,
+              'error': 'Parse error: $parseError',
+              'raw_release': latestRelease,
+            };
+          }
+        } else {
+          return {
+            'success': false,
+            'error': 'No releases found',
+            'releases_count': 0,
+          };
+        }
+      } else {
+        return {
+          'success': false,
+          'error': 'HTTP ${response.statusCode}',
+          'response_data': response.data,
+        };
+      }
+    } catch (e) {
+      DebugConfig.logError(
+        'Debug: Error during manual update check',
+        tag: 'UpdateService',
+        error: e,
+      );
+      return {'success': false, 'error': e.toString()};
+    }
   }
 
-  /// Get detailed error information for troubleshooting
+  /// Enable debug mode to force showing updates (for testing)
+  void enableDebugForceUpdates(bool enable) {
+    _debugForceShowUpdates = enable;
+    DebugConfig.debugLog('Debug force updates: $enable', tag: 'UpdateService');
+  }
+
+  /// Force check for updates bypassing all caches and restrictions
+  Future<bool> forceCheckForUpdates() async {
+    DebugConfig.debugLog('Force checking for updates...', tag: 'UpdateService');
+
+    // Clear any existing update to force fresh check
+    _availableUpdate = null;
+
+    // Force a fresh check with aggressive retry
+    return await checkForUpdates(silent: false, retryCount: 5);
+  }
+
+  /// Get diagnostic information for troubleshooting
   Map<String, dynamic> getDiagnosticInfo() {
     return {
       'currentVersion': _currentVersion ?? 'Unknown',
@@ -890,6 +1068,7 @@ class UpdateService extends ChangeNotifier {
       'isDownloading': isDownloading,
       'downloadProgress': downloadProgress,
       'installPermissionGranted': installPermissionGranted,
+      'debugForceShowUpdates': _debugForceShowUpdates,
       'availableUpdate': _availableUpdate != null
           ? {
               'version': _availableUpdate!.version,

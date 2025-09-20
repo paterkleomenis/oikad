@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/auth_service.dart';
+import 'utils/debug_config.dart';
 
 class LocaleNotifier extends ChangeNotifier {
   String _locale = 'en';
@@ -134,6 +135,9 @@ class CompletionNotifier extends ChangeNotifier {
       _addCompletedItem('Dormitory Registration');
       _saveCompletionState();
       notifyListeners();
+
+      // Verify completion status with database to ensure consistency
+      _checkActualCompletionStatus();
     }
   }
 
@@ -148,10 +152,22 @@ class CompletionNotifier extends ChangeNotifier {
 
   void markDocumentsCompleted() {
     if (!_documentsCompleted) {
+      DebugConfig.debugLog(
+        'Marking documents as completed',
+        tag: 'CompletionNotifier',
+      );
       _documentsCompleted = true;
       _addCompletedItem('Document Upload');
       _saveCompletionState();
       notifyListeners();
+
+      // Verify completion status with database to ensure consistency
+      _checkActualCompletionStatus();
+    } else {
+      DebugConfig.debugLog(
+        'Documents already marked as completed',
+        tag: 'CompletionNotifier',
+      );
     }
   }
 
@@ -260,14 +276,21 @@ class CompletionNotifier extends ChangeNotifier {
         _registrationCompleted = false;
       }
 
-      // Check documents completion by verifying if document submission exists
+      // Check documents completion by verifying if document submission exists with 'submitted' status
       final documentsResult = await Supabase.instance.client
           .from('document_submissions')
-          .select('id')
+          .select('submission_status')
           .eq('student_id', currentUserId)
           .maybeSingle();
 
-      _documentsCompleted = documentsResult != null;
+      final documentStatus = documentsResult?['submission_status'];
+      _documentsCompleted =
+          documentsResult != null && documentStatus == 'submitted';
+
+      DebugConfig.debugLog(
+        'Document completion check: result=$documentsResult, status=$documentStatus, completed=$_documentsCompleted',
+        tag: 'CompletionNotifier',
+      );
 
       // Save the updated status
       await _saveCompletionState();

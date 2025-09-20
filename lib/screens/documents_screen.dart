@@ -8,6 +8,7 @@ import '../services/localization_service.dart';
 import '../services/document_service.dart';
 import '../services/auth_service.dart';
 import '../services/image_processing_service.dart';
+import '../utils/debug_config.dart';
 import '../services/text_utils.dart';
 import 'welcome_screen.dart';
 
@@ -370,7 +371,16 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
       // Only mark documents as completed if this is a submission (not draft) and we have essential documents
       if (mounted && !isDraft && _isDocumentsComplete()) {
+        DebugConfig.debugLog(
+          'Documents are complete, marking as completed. isDraft=$isDraft, isComplete=${_isDocumentsComplete()}',
+          tag: 'DocumentsScreen',
+        );
         context.read<CompletionNotifier>().markDocumentsCompleted();
+      } else {
+        DebugConfig.debugLog(
+          'Documents not marked as completed. mounted=$mounted, isDraft=$isDraft, isComplete=${_isDocumentsComplete()}',
+          tag: 'DocumentsScreen',
+        );
       }
 
       setState(() {
@@ -417,7 +427,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       hasIdentityDocument = _passportPhoto != null;
     }
 
-    return _studentPhoto != null && hasIdentityDocument && _consentAccepted;
+    final isComplete =
+        _studentPhoto != null && hasIdentityDocument && _consentAccepted;
+    DebugConfig.debugLog(
+      'Document completion check: studentPhoto=${_studentPhoto != null}, hasIdentityDocument=$hasIdentityDocument, consentAccepted=$_consentAccepted, isComplete=$isComplete',
+      tag: 'DocumentsScreen',
+    );
+    return isComplete;
   }
 
   Widget _buildThumbnailPreview(PlatformFile? file) {
