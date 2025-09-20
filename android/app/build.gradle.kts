@@ -36,10 +36,19 @@ android {
     signingConfigs {
         create("release") {
             if (keystorePropertiesFile.exists()) {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
+                try {
+                    keyAlias = keystoreProperties["keyAlias"] as String
+                    keyPassword = keystoreProperties["keyPassword"] as String
+                    storeFile = file(keystoreProperties["storeFile"] as String)
+                    storePassword = keystoreProperties["storePassword"] as String
+                } catch (e: Exception) {
+                    // Fallback to debug signing if keystore fails
+                    println("Warning: Keystore failed to load, using debug signing: ${e.message}")
+                    keyAlias = "androiddebugkey"
+                    keyPassword = "android"
+                    storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
+                    storePassword = "android"
+                }
             } else {
                 // Fallback to debug signing for consistency
                 keyAlias = "androiddebugkey"
@@ -52,7 +61,7 @@ android {
 
     buildTypes {
         release {
-            // Always use release signing config (with fallback to debug keys if needed)
+            // Use release signing config with new compatible keystore
             signingConfig = signingConfigs.getByName("release")
             // Ensure consistent package conflicts are avoided
             isMinifyEnabled = false
