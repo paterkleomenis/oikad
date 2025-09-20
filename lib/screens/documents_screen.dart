@@ -429,7 +429,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       decoration: BoxDecoration(
         border: Border.all(
           color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.white.withOpacity(0.3)
+              ? Colors.white.withValues(alpha: 0.3)
               : Colors.grey.shade300,
         ),
         borderRadius: BorderRadius.circular(4),
@@ -520,7 +520,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           decoration: BoxDecoration(
             border: Border.all(
               color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white.withOpacity(0.3)
+                  ? Colors.white.withValues(alpha: 0.3)
                   : Colors.grey.shade300,
             ),
             borderRadius: BorderRadius.circular(8),
@@ -555,7 +555,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         ? Theme.of(context).colorScheme.onSurface
                         : Theme.of(
                             context,
-                          ).colorScheme.onSurface.withOpacity(0.6),
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ),
@@ -630,58 +630,136 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   // Radio buttons for document type
                   Column(
                     children: [
-                      RadioListTile<String>(
-                        title: Text(
-                          t(locale, 'id_card_front_back'),
-                          style: TextStyle(
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white
-                                : null,
-                          ),
-                        ),
-                        value: 'id',
-                        groupValue: _selectedDocumentType,
-                        onChanged: (value) {
+                      GestureDetector(
+                        onTap: () {
                           setState(() {
-                            _selectedDocumentType = value;
-                            // Clear passport if switching to ID
-                            if (value == 'id') {
-                              _passportPhoto = null;
-                            }
+                            _selectedDocumentType = 'id';
+                            _passportPhoto = null;
                           });
                         },
-                        activeColor:
-                            Theme.of(context).brightness == Brightness.dark
-                            ? const Color(0xFF64B5F6)
-                            : Theme.of(context).primaryColor,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: _selectedDocumentType == 'id'
+                                        ? (Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? const Color(0xFF64B5F6)
+                                              : Theme.of(context).primaryColor)
+                                        : Colors.grey,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: _selectedDocumentType == 'id'
+                                    ? Center(
+                                        child: Container(
+                                          width: 10,
+                                          height: 10,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color:
+                                                Theme.of(context).brightness ==
+                                                    Brightness.dark
+                                                ? const Color(0xFF64B5F6)
+                                                : Theme.of(
+                                                    context,
+                                                  ).primaryColor,
+                                          ),
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  t(locale, 'id_card_front_back'),
+                                  style: TextStyle(
+                                    color:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      RadioListTile<String>(
-                        title: Text(
-                          t(locale, 'passport_document'),
-                          style: TextStyle(
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white
-                                : null,
-                          ),
-                        ),
-                        value: 'passport',
-                        groupValue: _selectedDocumentType,
-                        onChanged: (value) {
+                      GestureDetector(
+                        onTap: () {
                           setState(() {
-                            _selectedDocumentType = value;
-                            // Clear ID photos if switching to passport
-                            if (value == 'passport') {
-                              _idFrontPhoto = null;
-                              _idBackPhoto = null;
-                            }
+                            _selectedDocumentType = 'passport';
+                            _idFrontPhoto = null;
+                            _idBackPhoto = null;
                           });
                         },
-                        activeColor:
-                            Theme.of(context).brightness == Brightness.dark
-                            ? const Color(0xFF64B5F6)
-                            : Theme.of(context).primaryColor,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: _selectedDocumentType == 'passport'
+                                        ? (Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? const Color(0xFF64B5F6)
+                                              : Theme.of(context).primaryColor)
+                                        : Colors.grey,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: _selectedDocumentType == 'passport'
+                                    ? Center(
+                                        child: Container(
+                                          width: 10,
+                                          height: 10,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color:
+                                                Theme.of(context).brightness ==
+                                                    Brightness.dark
+                                                ? const Color(0xFF64B5F6)
+                                                : Theme.of(
+                                                    context,
+                                                  ).primaryColor,
+                                          ),
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  t(locale, 'passport_document'),
+                                  style: TextStyle(
+                                    color:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),

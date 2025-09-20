@@ -37,7 +37,7 @@ class AppInfo {
   /// Get the full version string (e.g., "1.0.0+1")
   static String get fullVersion {
     if (isInitialized) {
-      return '${version}+${buildNumber}';
+      return '$version+$buildNumber';
     }
     return 'Unknown Version';
   }

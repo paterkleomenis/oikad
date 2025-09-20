@@ -92,7 +92,7 @@ class MyApp extends StatelessWidget {
       ),
       cardTheme: CardThemeData(
         elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withValues(alpha: 0.1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -140,12 +140,15 @@ class MyApp extends StatelessWidget {
       ),
       cardTheme: CardThemeData(
         elevation: 4,
-        shadowColor: Colors.black.withOpacity(0.3),
+        shadowColor: Colors.black.withValues(alpha: 0.3),
         color: const Color(0xFF1A1F2E),
-        surfaceTintColor: const Color(0xFF4A9FB8).withOpacity(0.1),
+        surfaceTintColor: const Color(0xFF4A9FB8).withValues(alpha: 0.1),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.white.withOpacity(0.1), width: 0.5),
+          side: BorderSide(
+            color: Colors.white.withValues(alpha: 0.1),
+            width: 0.5,
+          ),
         ),
       ),
       textTheme: const TextTheme(
@@ -184,7 +187,7 @@ class MyApp extends StatelessWidget {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -197,7 +200,7 @@ class MyApp extends StatelessWidget {
       ),
       listTileTheme: ListTileThemeData(
         tileColor: Colors.transparent,
-        selectedTileColor: const Color(0xFF4A9FB8).withOpacity(0.2),
+        selectedTileColor: const Color(0xFF4A9FB8).withValues(alpha: 0.2),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textColor: Colors.white,
         iconColor: Colors.white70,

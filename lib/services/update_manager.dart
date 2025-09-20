@@ -290,7 +290,7 @@ class UpdateManager {
               'Safety checks failed: ${safetyResult.issues.join(', ')}',
             );
           }
-          if (!silent) {
+          if (!silent && context.mounted) {
             await _showSafetyWarningDialog(context, safetyResult);
           }
           return false;

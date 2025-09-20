@@ -75,7 +75,7 @@ class UpdateDialog extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -229,7 +229,7 @@ class UpdateDialog extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.1),
+              color: Colors.red.withValues(alpha: 0.1),
               border: Border.all(color: Colors.red),
               borderRadius: BorderRadius.circular(8),
             ),
@@ -334,63 +334,6 @@ class UpdateDialog extends StatelessWidget {
     );
   }
 
-  void _showUpdateSuccessDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        icon: const Icon(Icons.check_circle, color: Colors.green, size: 48),
-        title: const Text('Update Downloaded!'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'The update has been downloaded and verified successfully.',
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '📱 Installation Instructions:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 8),
-                  Text('1. Check your file manager or Downloads folder'),
-                  Text('2. Look for the APK file'),
-                  Text(
-                    '3. Tap to install (enable "Unknown sources" if needed)',
-                  ),
-                  Text('4. Follow the installation prompts'),
-                  SizedBox(height: 8),
-                  Text(
-                    '✅ File integrity verified',
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Got it!'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showUpdateErrorDialog(BuildContext context) {
     final updateService = context.read<UpdateService>();
     final diagnosticInfo = updateService.getDiagnosticInfo();
@@ -412,7 +355,7 @@ class UpdateDialog extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.grey),
                 ),
@@ -452,7 +395,7 @@ class UpdateDialog extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.orange),
                 ),
@@ -495,6 +438,7 @@ class UpdateDialog extends StatelessWidget {
               // Force retry with aggressive settings
               updateService.forceCheckForUpdates().then((hasUpdate) async {
                 if (hasUpdate) {
+                  if (!context.mounted) return;
                   final success = await updateService.downloadAndInstall(
                     context,
                   );

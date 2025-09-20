@@ -230,8 +230,8 @@ class UpdateNotificationBanner extends StatelessWidget {
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: severity.isImportant
-                ? Colors.orange.withOpacity(0.1)
-                : Colors.blue.withOpacity(0.1),
+                ? Colors.orange.withValues(alpha: 0.1)
+                : Colors.blue.withValues(alpha: 0.1),
             border: Border.all(
               color: severity.isImportant ? Colors.orange : Colors.blue,
             ),

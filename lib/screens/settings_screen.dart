@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../notifiers.dart';
@@ -150,12 +149,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         decoration: BoxDecoration(
                           color: Theme.of(
                             context,
-                          ).primaryColor.withOpacity(0.1),
+                          ).primaryColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: Theme.of(
                               context,
-                            ).primaryColor.withOpacity(0.3),
+                            ).primaryColor.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Column(

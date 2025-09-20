@@ -17,8 +17,12 @@ class VersionService {
     final maxLength = parts1.length > parts2.length
         ? parts1.length
         : parts2.length;
-    while (parts1.length < maxLength) parts1.add(0);
-    while (parts2.length < maxLength) parts2.add(0);
+    while (parts1.length < maxLength) {
+      parts1.add(0);
+    }
+    while (parts2.length < maxLength) {
+      parts2.add(0);
+    }
 
     for (int i = 0; i < maxLength; i++) {
       if (parts1[i] < parts2[i]) return -1;
@@ -99,8 +103,9 @@ class VersionService {
   static String formatFileSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024)
+    if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 }

@@ -148,15 +148,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(context);
               try {
                 await AuthService.signOut();
                 if (mounted) {
-                  Navigator.of(context).pushReplacementNamed('/welcome');
+                  navigator.pushReplacementNamed('/welcome');
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     SnackBar(content: Text('Error signing out: $e')),
                   );
                 }
@@ -316,9 +318,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               t(locale, 'dashboard_subtitle'),
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface.withOpacity(0.7),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.7),
                                   ),
                             ),
                           ],
@@ -388,7 +391,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               decoration: BoxDecoration(
                                 color: Theme.of(
                                   context,
-                                ).colorScheme.primary.withOpacity(0.1),
+                                ).colorScheme.primary.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
@@ -435,7 +438,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               decoration: BoxDecoration(
                                 color: Theme.of(
                                   context,
-                                ).colorScheme.primary.withOpacity(0.1),
+                                ).colorScheme.primary.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
@@ -508,7 +511,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 size: 28,
                 color: Theme.of(context).brightness == Brightness.dark
                     ? const Color(0xFF64B5F6)
-                    : Theme.of(context).primaryColor.withOpacity(0.8),
+                    : Theme.of(context).primaryColor.withValues(alpha: 0.8),
               ),
               const SizedBox(height: 8),
               Text(
@@ -596,7 +599,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       size: 48,
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.5),
+                      ).colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -604,7 +607,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withOpacity(0.7),
+                        ).colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -653,8 +656,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFF64B5F6).withOpacity(0.2)
-                  : Colors.green.withOpacity(0.1),
+                  ? const Color(0xFF64B5F6).withValues(alpha: 0.2)
+                  : Colors.green.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -671,7 +674,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             size: 20,
             color: Theme.of(context).brightness == Brightness.dark
                 ? const Color(0xFF64B5F6)
-                : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.7),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -693,8 +698,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               tooltip: t(locale, 'edit'),
               style: IconButton.styleFrom(
                 backgroundColor: Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFF64B5F6).withOpacity(0.1)
-                    : Theme.of(context).primaryColor.withOpacity(0.1),
+                    ? const Color(0xFF64B5F6).withValues(alpha: 0.1)
+                    : Theme.of(context).primaryColor.withValues(alpha: 0.1),
                 foregroundColor: Theme.of(context).brightness == Brightness.dark
                     ? const Color(0xFF64B5F6)
                     : Theme.of(context).primaryColor,

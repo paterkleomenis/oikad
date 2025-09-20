@@ -765,14 +765,17 @@ class AuthService {
     const totalFields = 6; // Adjust based on required fields
 
     if (profile['name']?.toString().isNotEmpty == true) completedFields++;
-    if (profile['family_name']?.toString().isNotEmpty == true)
+    if (profile['family_name']?.toString().isNotEmpty == true) {
       completedFields++;
+    }
     if (profile['email']?.toString().isNotEmpty == true) completedFields++;
     if (profile['phone']?.toString().isNotEmpty == true) completedFields++;
     if (profile['id_card_number']?.toString().isNotEmpty == true) {
       completedFields++;
     }
-    if (profile['university']?.toString().isNotEmpty == true) completedFields++;
+    if (profile['university']?.toString().isNotEmpty == true) {
+      completedFields++;
+    }
 
     return ((completedFields / totalFields) * 100).round();
   }

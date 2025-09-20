@@ -48,7 +48,7 @@ class UpdateService extends ChangeNotifier {
 
   /// Initialize the update service
   Future<void> initialize() async {
-    DebugConfig.debugPrint('Starting initialization...', tag: 'UpdateService');
+    DebugConfig.debugLog('Starting initialization...', tag: 'UpdateService');
     await _loadCurrentVersion();
     await _loadPackageName();
     await _configureDio();
@@ -59,7 +59,7 @@ class UpdateService extends ChangeNotifier {
 
     await _schedulePeriodicCheck();
     await _cleanupOldUpdateFiles();
-    DebugConfig.debugPrint('Initialization completed', tag: 'UpdateService');
+    DebugConfig.debugLog('Initialization completed', tag: 'UpdateService');
   }
 
   /// Load GitHub token from secure storage
@@ -85,7 +85,7 @@ class UpdateService extends ChangeNotifier {
     if (token != null && token.isNotEmpty) {
       _dio.options.headers['Authorization'] = 'Bearer $token';
       _dio.options.headers['Accept'] = 'application/vnd.github.v3+json';
-      DebugConfig.debugPrint(
+      DebugConfig.debugLog(
         'GitHub API configured with authentication',
         tag: 'UpdateService',
       );
@@ -103,10 +103,7 @@ class UpdateService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('github_token', token);
-      DebugConfig.debugPrint(
-        'GitHub token saved securely',
-        tag: 'UpdateService',
-      );
+      DebugConfig.debugLog('GitHub token saved securely', tag: 'UpdateService');
     } catch (e) {
       DebugConfig.logError(
         'Error saving GitHub token',
@@ -136,10 +133,7 @@ class UpdateService extends ChangeNotifier {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       _packageName = packageInfo.packageName;
-      DebugConfig.debugPrint(
-        'Package name: $_packageName',
-        tag: 'UpdateService',
-      );
+      DebugConfig.debugLog('Package name: $_packageName', tag: 'UpdateService');
     } catch (e) {
       DebugConfig.logError(
         'Error loading package name',
@@ -173,14 +167,14 @@ class UpdateService extends ChangeNotifier {
     int retryCount = 3,
   }) async {
     if (_isChecking) {
-      DebugConfig.debugPrint(
+      DebugConfig.debugLog(
         'Already checking for updates, skipping',
         tag: 'UpdateService',
       );
       return false;
     }
 
-    DebugConfig.debugPrint('Starting update check', tag: 'UpdateService');
+    DebugConfig.debugLog('Starting update check', tag: 'UpdateService');
 
     _isChecking = true;
     if (!silent) notifyListeners();
@@ -256,7 +250,7 @@ class UpdateService extends ChangeNotifier {
         }
       }
     } finally {
-      DebugConfig.debugPrint(
+      DebugConfig.debugLog(
         'Finishing update check, hasUpdate: $hasUpdate',
         tag: 'UpdateService',
       );
@@ -339,7 +333,7 @@ class UpdateService extends ChangeNotifier {
         final fileName = _getFileName();
         _downloadPath = '${directory.path}/$fileName';
 
-        DebugConfig.debugPrint(
+        DebugConfig.debugLog(
           'Download attempt ${attempt + 1}/$retryCount to: $_downloadPath',
           tag: 'UpdateService',
         );
@@ -366,7 +360,7 @@ class UpdateService extends ChangeNotifier {
               if (DebugConfig.enableVerboseLogging &&
                   received % (1024 * 1024) == 0) {
                 // Log progress every MB
-                DebugConfig.debugPrint(
+                DebugConfig.debugLog(
                   'Download progress: ${(received / total * 100).toStringAsFixed(1)}%',
                   tag: 'UpdateService',
                 );
@@ -375,7 +369,7 @@ class UpdateService extends ChangeNotifier {
           },
         );
 
-        DebugConfig.debugPrint(
+        DebugConfig.debugLog(
           'Download completed successfully on attempt ${attempt + 1}',
           tag: 'UpdateService',
         );
@@ -441,7 +435,7 @@ class UpdateService extends ChangeNotifier {
       // Use app-specific external storage (no permissions needed on Android 10+)
       try {
         final appDir = await getApplicationDocumentsDirectory();
-        DebugConfig.debugPrint(
+        DebugConfig.debugLog(
           'Using app documents directory: ${appDir.path}',
           tag: 'UpdateService',
         );
@@ -454,7 +448,7 @@ class UpdateService extends ChangeNotifier {
         );
         // Fallback to internal storage
         final tempDir = await getTemporaryDirectory();
-        DebugConfig.debugPrint(
+        DebugConfig.debugLog(
           'Using temporary directory: ${tempDir.path}',
           tag: 'UpdateService',
         );
@@ -488,7 +482,7 @@ class UpdateService extends ChangeNotifier {
       // Check if we can install packages from unknown sources
       _installPermissionGranted = await _canInstallFromUnknownSources();
 
-      DebugConfig.debugPrint(
+      DebugConfig.debugLog(
         'Install permission granted: $_installPermissionGranted',
         tag: 'UpdateService',
       );
@@ -530,6 +524,7 @@ class UpdateService extends ChangeNotifier {
       }
 
       // Show dialog explaining why permission is needed
+      if (!context.mounted) return false;
       final shouldRequest = await _showInstallPermissionDialog(context);
 
       if (!shouldRequest) {
@@ -649,8 +644,8 @@ class UpdateService extends ChangeNotifier {
     }
 
     final fileSize = await file.length();
-    DebugConfig.debugPrint(
-      'Installing file: $_downloadPath (${fileSize} bytes)',
+    DebugConfig.debugLog(
+      'Installing file: $_downloadPath ($fileSize bytes)',
       tag: 'UpdateService',
     );
 
@@ -667,7 +662,7 @@ class UpdateService extends ChangeNotifier {
 
         // For Android, use open_file to prompt user to install APK
         final result = await OpenFile.open(_downloadPath!);
-        DebugConfig.debugPrint(
+        DebugConfig.debugLog(
           'OpenFile result: ${result.type}',
           tag: 'UpdateService',
         );
@@ -798,7 +793,7 @@ class UpdateService extends ChangeNotifier {
           return false;
         }
 
-        DebugConfig.debugPrint(
+        DebugConfig.debugLog(
           'File verification successful. Size: $actualSize, SHA-256: $calculatedChecksum',
           tag: 'UpdateService',
         );
@@ -808,7 +803,7 @@ class UpdateService extends ChangeNotifier {
         final digest = sha256.convert(fileBytes);
         final checksum = digest.toString();
 
-        DebugConfig.debugPrint(
+        DebugConfig.debugLog(
           'File verification completed (no checksum to verify). Size: $actualSize, SHA-256: $checksum',
           tag: 'UpdateService',
         );
@@ -850,7 +845,7 @@ class UpdateService extends ChangeNotifier {
             try {
               await file.delete();
               cleanedCount++;
-              DebugConfig.debugPrint(
+              DebugConfig.debugLog(
                 'Cleaned up old update file: ${file.path}',
                 tag: 'UpdateService',
               );
@@ -866,7 +861,7 @@ class UpdateService extends ChangeNotifier {
       }
 
       if (cleanedCount > 0) {
-        DebugConfig.debugPrint(
+        DebugConfig.debugLog(
           'Cleanup completed: removed $cleanedCount old update files',
           tag: 'UpdateService',
         );

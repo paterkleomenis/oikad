@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:developer' as developer;
 
 /// Debug configuration utility for OIKAD
 ///
@@ -53,23 +54,27 @@ class DebugConfig {
       appEnvironment == 'development' && kDebugMode;
 
   /// Safe debug print that only prints in debug mode
-  static void debugPrint(String message, {String? tag}) {
+  static void debugLog(String message, {String? tag}) {
     if (kDebugMode && enableVerboseLogging) {
       final prefix = tag != null ? '[$tag] ' : '[DEBUG] ';
-      print('$prefix$message');
+      developer.log('$prefix$message');
     }
   }
 
   /// Log important information (allowed in release builds)
   static void logInfo(String message, {String? tag}) {
     final prefix = tag != null ? '[$tag] ' : '[INFO] ';
-    print('$prefix$message');
+    if (kDebugMode) {
+      developer.log('$prefix$message');
+    }
   }
 
   /// Log warnings (allowed in release builds)
   static void logWarning(String message, {String? tag}) {
     final prefix = tag != null ? '[$tag] ' : '[WARNING] ';
-    print('$prefix$message');
+    if (kDebugMode) {
+      developer.log('$prefix$message');
+    }
   }
 
   /// Log errors (always enabled)
@@ -80,14 +85,16 @@ class DebugConfig {
     StackTrace? stackTrace,
   }) {
     final prefix = tag != null ? '[$tag] ' : '[ERROR] ';
-    print('$prefix$message');
+    if (kDebugMode) {
+      developer.log('$prefix$message');
 
-    if (error != null) {
-      print('Error: $error');
-    }
+      if (error != null) {
+        developer.log('Error: $error');
+      }
 
-    if (stackTrace != null && kDebugMode) {
-      print('Stack trace: $stackTrace');
+      if (stackTrace != null) {
+        developer.log('Stack trace: $stackTrace');
+      }
     }
   }
 
@@ -121,7 +128,7 @@ class DebugConfig {
       operation();
     } finally {
       stopwatch.stop();
-      debugPrint(
+      debugLog(
         'Operation "$operationName" took ${stopwatch.elapsedMilliseconds}ms',
         tag: 'PERFORMANCE',
       );
@@ -142,7 +149,7 @@ class DebugConfig {
       return await operation();
     } finally {
       stopwatch.stop();
-      debugPrint(
+      debugLog(
         'Async operation "$operationName" took ${stopwatch.elapsedMilliseconds}ms',
         tag: 'PERFORMANCE',
       );

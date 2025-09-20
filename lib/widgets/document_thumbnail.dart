@@ -18,7 +18,7 @@ class DocumentThumbnail extends StatefulWidget {
   final BoxBorder? border;
 
   const DocumentThumbnail({
-    Key? key,
+    super.key,
     this.documentId,
     this.filePath,
     this.fileName,
@@ -32,8 +32,7 @@ class DocumentThumbnail extends StatefulWidget {
   }) : assert(
          documentId != null || filePath != null,
          'Either documentId or filePath must be provided',
-       ),
-       super(key: key);
+       );
 
   @override
   State<DocumentThumbnail> createState() => _DocumentThumbnailState();
@@ -217,12 +216,12 @@ class SimpleDocumentThumbnail extends StatelessWidget {
   final double size;
 
   const SimpleDocumentThumbnail({
-    Key? key,
+    super.key,
     this.documentId,
     this.filePath,
     this.fileName,
     this.size = 40,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -247,13 +246,13 @@ class DocumentThumbnailWithOverlay extends StatelessWidget {
   final VoidCallback? onTap;
 
   const DocumentThumbnailWithOverlay({
-    Key? key,
+    super.key,
     this.documentId,
     this.filePath,
     this.fileName,
     this.size = 80,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -266,7 +265,7 @@ class DocumentThumbnailWithOverlay extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),

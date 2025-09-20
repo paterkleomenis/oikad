@@ -513,7 +513,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                 }
                               },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).brightness == Brightness.dark
+                          backgroundColor:
+                              Theme.of(context).brightness == Brightness.dark
                               ? const Color(0xFF64B5F6)
                               : Theme.of(context).primaryColor,
                           foregroundColor: Colors.white,
@@ -604,7 +605,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 : null,
           ),
         ),
-        value: _hasOtherDegree,
+        initialValue: _hasOtherDegree,
         items: [
           DropdownMenuItem(
             value: true,
