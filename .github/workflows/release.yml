@@ -1,5 +1,11 @@
 name: Release Build
 
+# Required GitHub Secrets for Android signing:
+# - KEYSTORE_BASE64: Base64 encoded keystore file
+# - KEYSTORE_PASSWORD: Password for the keystore
+# - KEYSTORE_ALIAS: Alias for the signing key
+# - ENV: Environment variables file content
+
 on:
   push:
     tags:
@@ -21,6 +27,14 @@ jobs:
 
       - name: Create .env file
         run: echo "${{ secrets.ENV }}" > .env
+
+      - name: Setup Android keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
+          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" > android/key.properties
+          echo "keyPassword=${{ secrets.KEYSTORE_PASSWORD }}" >> android/key.properties
+          echo "keyAlias=${{ secrets.KEYSTORE_ALIAS }}" >> android/key.properties
+          echo "storeFile=upload-keystore.jks" >> android/key.properties
 
       - name: Setup Java
         uses: actions/setup-java@v4

@@ -1,4 +1,4 @@
-package com.oikad.app
+package com.paterkleomenis.oikad
 
 import android.content.Intent
 import android.net.Uri
