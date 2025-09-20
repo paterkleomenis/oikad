@@ -54,6 +54,20 @@ jobs:
       - name: Build APK
         run: flutter build apk --release --target-platform android-arm64 --dart-define-from-file=.env
 
+      - name: Sign APK
+        run: |
+          jarsigner -verbose \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            -keystore android/app/upload-keystore.jks \
+            -storepass ${{ secrets.KEYSTORE_PASSWORD }} \
+            -keypass ${{ secrets.KEYSTORE_PASSWORD }} \
+            build/app/outputs/flutter-apk/app-release.apk \
+            ${{ secrets.KEYSTORE_ALIAS }}
+
+      - name: Verify APK signature
+        run: jarsigner -verify build/app/outputs/flutter-apk/app-release.apk
+
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:

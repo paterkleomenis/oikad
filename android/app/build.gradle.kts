@@ -35,35 +35,16 @@ android {
 
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
-                try {
-                    keyAlias = keystoreProperties["keyAlias"] as String
-                    keyPassword = keystoreProperties["keyPassword"] as String
-                    storeFile = file(keystoreProperties["storeFile"] as String)
-                    storePassword = keystoreProperties["storePassword"] as String
-                } catch (e: Exception) {
-                    // Fallback to debug signing if keystore fails
-                    println("Warning: Keystore failed to load, using debug signing: ${e.message}")
-                    keyAlias = "androiddebugkey"
-                    keyPassword = "android"
-                    storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
-                    storePassword = "android"
-                }
-            } else {
-                // Fallback to debug signing for consistency
-                keyAlias = "androiddebugkey"
-                keyPassword = "android"
-                storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
-                storePassword = "android"
-            }
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storeFile = file("upload-keystore.jks")
+            storePassword = keystoreProperties["storePassword"] as String
         }
     }
 
     buildTypes {
         release {
-            // Use release signing config with new compatible keystore
             signingConfig = signingConfigs.getByName("release")
-            // Ensure consistent package conflicts are avoided
             isMinifyEnabled = false
             isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
