@@ -1,3 +1,5 @@
+import '../utils/app_info.dart';
+
 class AppUpdate {
   final String version;
   final String buildNumber;
@@ -10,7 +12,7 @@ class AppUpdate {
   final bool isCritical;
   final List<String> features;
   final List<String> bugFixes;
-  final String minRequiredVersion;
+  final String? minRequiredVersion;
   final String? checksum;
   final String? checksumType;
   final Map<String, dynamic> metadata;
@@ -27,11 +29,25 @@ class AppUpdate {
     this.isCritical = false,
     this.features = const [],
     this.bugFixes = const [],
-    this.minRequiredVersion = '1.0.0',
+    this.minRequiredVersion,
     this.checksum,
     this.checksumType = 'sha256',
     this.metadata = const {},
   });
+
+  /// Get the minimum required version with smart default
+  String get effectiveMinRequiredVersion {
+    if (minRequiredVersion != null && minRequiredVersion!.isNotEmpty) {
+      return minRequiredVersion!;
+    }
+    // Use current app version as minimum if not specified
+    try {
+      return AppInfo.version;
+    } catch (e) {
+      // Fallback to a reasonable default if AppInfo is not available
+      return '0.0.0';
+    }
+  }
 
   factory AppUpdate.fromGitHubRelease(Map<String, dynamic> json) {
     final assets = json['assets'] as List<dynamic>? ?? [];
@@ -110,9 +126,13 @@ class AppUpdate {
       cleanVersion = '$cleanVersion.0.0';
     }
 
-    // Fallback to 1.0.0 if version is invalid
+    // Fallback to current app version if parsing fails
     if (cleanVersion.isEmpty) {
-      cleanVersion = '1.0.0';
+      try {
+        cleanVersion = AppInfo.version;
+      } catch (e) {
+        cleanVersion = 'Unknown';
+      }
     }
 
     return AppUpdate(

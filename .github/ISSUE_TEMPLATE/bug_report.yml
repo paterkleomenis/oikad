@@ -95,7 +95,7 @@ body:
     attributes:
       label: App Version
       description: Version of OIKAD you're using
-      placeholder: e.g., v1.1.1
+      placeholder: e.g., v1.2.3 (check in app settings)
     validations:
       required: true
 

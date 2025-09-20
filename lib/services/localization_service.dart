@@ -242,7 +242,7 @@ class LocalizationService {
           'In guest mode, you can view documents but cannot upload or submit them. Create an account to access all features.',
       'app_version': AppInfo.isInitialized
           ? AppInfo.displayVersion
-          : 'Version 1.1.1',
+          : 'Version Unknown',
       'terms_of_service': 'Terms of Service',
 
       // Update System
@@ -518,7 +518,7 @@ class LocalizationService {
           'Στη λειτουργία επισκέπτη, μπορείτε να δείτε τα δικαιολογητικά αλλά δεν μπορείτε να ανεβάσετε ή να υποβάλετε. Δημιουργήστε λογαριασμό για πρόσβαση σε όλες τις λειτουργίες.',
       'app_version': AppInfo.isInitialized
           ? 'Έκδοση ${AppInfo.version}'
-          : 'Έκδοση 1.1.1',
+          : 'Έκδοση Άγνωστη',
       'terms_of_service': 'Όροι Χρήσης',
 
       // Update System

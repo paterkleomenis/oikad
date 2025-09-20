@@ -1,5 +1,5 @@
 class VersionService {
-  /// Compare two version strings (e.g., "1.2.3" vs "1.3.0")
+  /// Compare two version strings (e.g., "versionA" vs "versionB")
   /// Returns:
   /// - negative if version1 < version2
   /// - 0 if version1 == version2

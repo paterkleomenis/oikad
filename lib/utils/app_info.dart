@@ -9,24 +9,45 @@ class AppInfo {
     _packageInfo = await PackageInfo.fromPlatform();
   }
 
-  /// Get the current app version (e.g., "1.1.1")
+  /// Get the current app version with safe fallback
   static String get version {
-    return _packageInfo?.version ?? '1.1.1';
+    return _packageInfo?.version ?? 'Unknown';
   }
 
-  /// Get the current build number (e.g., "1")
+  /// Get the current build number with safe fallback
   static String get buildNumber {
-    return _packageInfo?.buildNumber ?? '1';
+    return _packageInfo?.buildNumber ?? 'Unknown';
   }
 
-  /// Get the full version string (e.g., "1.1.1+1")
+  /// Check if app info has been properly initialized
+  static bool get isInitialized {
+    return _packageInfo != null;
+  }
+
+  /// Get version safely - returns null if not initialized
+  static String? get versionSafe {
+    return _packageInfo?.version;
+  }
+
+  /// Get build number safely - returns null if not initialized
+  static String? get buildNumberSafe {
+    return _packageInfo?.buildNumber;
+  }
+
+  /// Get the full version string (e.g., "1.0.0+1")
   static String get fullVersion {
-    return '${version}+${buildNumber}';
+    if (isInitialized) {
+      return '${version}+${buildNumber}';
+    }
+    return 'Unknown Version';
   }
 
-  /// Get the formatted version for display (e.g., "Version 1.1.1")
+  /// Get the formatted version for display (e.g., "Version 1.0.0")
   static String get displayVersion {
-    return 'Version $version';
+    if (isInitialized) {
+      return 'Version $version';
+    }
+    return 'Version Unknown';
   }
 
   /// Get the app name
@@ -37,11 +58,6 @@ class AppInfo {
   /// Get the package name
   static String get packageName {
     return _packageInfo?.packageName ?? 'com.oikad.app';
-  }
-
-  /// Check if app info is initialized
-  static bool get isInitialized {
-    return _packageInfo != null;
   }
 
   /// Force refresh the package info

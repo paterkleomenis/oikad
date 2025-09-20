@@ -6,7 +6,7 @@
 
 **A modern Flutter application for student dormitory registration with document management and auto-update capabilities**
 
-[![Flutter](https://img.shields.io/badge/Flutter-3.19+-blue.svg)](https://flutter.dev/)
+[![Flutter](https://img.shields.io/badge/Flutter-3.35+-blue.svg)](https://flutter.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Web%20%7C%20Desktop-lightgrey.svg)](https://flutter.dev/multi-platform)
 
@@ -44,7 +44,7 @@
 
 ### Prerequisites
 
-- **Flutter SDK** 3.19 or higher
+- **Flutter SDK** 3.35 or higher
 - **Android SDK** (for Android builds)
 - **Xcode** (for iOS builds, macOS only)
 - **Git** for version control
@@ -341,7 +341,7 @@ jobs:
 ### Release Process
 
 1. **Version Bump**: Update version in `pubspec.yaml`
-2. **Tag Release**: Create git tag `v1.2.3`
+2. **Tag Release**: Create git tag `v1.2.3` (use your version)
 3. **Build**: GitHub Actions automatically builds APK
 4. **Release**: Creates GitHub release with assets
 5. **Auto-Update**: Existing users get update notification
