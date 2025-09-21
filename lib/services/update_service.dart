@@ -93,25 +93,15 @@ class UpdateService extends ChangeNotifier {
     // Try to load token from secure storage first, fallback to hardcoded
     final token = await _loadGitHubToken() ?? _githubToken;
 
-    print('=== CONFIGURING DIO ===');
-    print('Token from SharedPreferences: ${await _loadGitHubToken()}');
-    print('Token from env: $_githubToken');
-    print('Final token: $token');
-    print(
-      'Token is not null and not empty: ${token != null && token.isNotEmpty}',
-    );
-
     if (token != null && token.isNotEmpty) {
       _dio.options.headers['Authorization'] = 'Bearer $token';
       _dio.options.headers['Accept'] = 'application/vnd.github.v3+json';
-      print('Authorization header set: Bearer ${token.substring(0, 8)}...');
       DebugConfig.debugLog(
         'GitHub API configured with authentication',
         tag: 'UpdateService',
       );
     } else {
       _dio.options.headers['Accept'] = 'application/vnd.github.v3+json';
-      print('No token configured - using unauthenticated requests');
       DebugConfig.logWarning(
         'GitHub API configured without authentication (rate limited)',
         tag: 'UpdateService',
@@ -199,11 +189,7 @@ class UpdateService extends ChangeNotifier {
     bool silent = false,
     int retryCount = 3,
   }) async {
-    print('=== UPDATE CHECK STARTED ===');
-    print('Silent: $silent, Current version: $_currentVersion');
-
     if (_isChecking) {
-      print('Already checking for updates, skipping');
       DebugConfig.debugLog(
         'Already checking for updates, skipping',
         tag: 'UpdateService',
@@ -211,7 +197,6 @@ class UpdateService extends ChangeNotifier {
       return false;
     }
 
-    print('Starting update check');
     DebugConfig.debugLog('Starting update check', tag: 'UpdateService');
 
     _isChecking = true;
@@ -222,24 +207,15 @@ class UpdateService extends ChangeNotifier {
     try {
       for (int attempt = 0; attempt < retryCount; attempt++) {
         try {
-          print('Making GitHub API request to: $_githubRepoUrl');
-          print(
-            'Authorization header: ${_dio.options.headers['Authorization'] != null ? "SET" : "NOT SET"}',
-          );
           final response = await _dio
               .get(_githubRepoUrl)
               .timeout(const Duration(seconds: 30));
 
-          print('GitHub API response status: ${response.statusCode}');
-
           if (response.statusCode == 200) {
             final releases = response.data as List<dynamic>;
-            print('Found ${releases.length} releases');
 
             if (releases.isNotEmpty) {
               final latestRelease = releases.first as Map<String, dynamic>;
-              print('Latest release tag: ${latestRelease['tag_name']}');
-              print('Latest release name: ${latestRelease['name']}');
 
               try {
                 final update = AppUpdate.fromGitHubRelease(latestRelease);
@@ -255,13 +231,6 @@ class UpdateService extends ChangeNotifier {
 
                 if (isNewer || _debugForceShowUpdates) {
                   // Update already set above with debug info
-                  print('=== UPDATE AVAILABLE ===');
-                  print(
-                    'Setting available update to version ${update.version}',
-                  );
-                  print(
-                    'Reason: isNewer=$isNewer, debugForce=$_debugForceShowUpdates',
-                  );
                   DebugConfig.debugLog(
                     'Update found! Setting available update to version ${update.version} (isNewer: $isNewer, debugForce: $_debugForceShowUpdates)',
                     tag: 'UpdateService',
@@ -278,18 +247,12 @@ class UpdateService extends ChangeNotifier {
                   notifyListeners();
                   return true;
                 } else {
-                  print('=== NO UPDATE NEEDED ===');
-                  print('Current: $_currentVersion, Latest: ${update.version}');
-                  print(
-                    'isNewer: $isNewer, debugForce: $_debugForceShowUpdates',
-                  );
                   DebugConfig.debugLog(
                     'No newer version found. Current: $_currentVersion, Latest: ${update.version}',
                     tag: 'UpdateService',
                   );
                 }
               } catch (parseError) {
-                print('Error parsing release: $parseError');
                 DebugConfig.logError(
                   'Error parsing update from release',
                   tag: 'UpdateService',
@@ -303,13 +266,8 @@ class UpdateService extends ChangeNotifier {
           _availableUpdate = null;
           break; // Exit the retry loop
         } catch (e) {
-          print('HTTP request error (attempt ${attempt + 1}): $e');
-
           if (e is DioException) {
-            print('DioException type: ${e.type}');
-            print('Response status: ${e.response?.statusCode}');
             if (e.response?.statusCode == 403) {
-              print('GitHub API rate limit exceeded');
               DebugConfig.logWarning(
                 'GitHub API rate limit exceeded',
                 tag: 'UpdateService',
@@ -319,7 +277,6 @@ class UpdateService extends ChangeNotifier {
           }
 
           if (attempt == retryCount - 1) {
-            print('Final attempt failed, giving up');
             DebugConfig.logError(
               'Error checking for updates after $retryCount attempts',
               tag: 'UpdateService',
@@ -329,7 +286,6 @@ class UpdateService extends ChangeNotifier {
             break; // Exit the retry loop
           }
 
-          print('Waiting before retry...');
           // Wait before retry with exponential backoff
           await Future.delayed(Duration(seconds: 2 * (attempt + 1)));
         }
