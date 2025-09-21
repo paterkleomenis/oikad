@@ -7,10 +7,14 @@ class VersionService {
   /// - 0 if version1 == version2
   /// - positive if version1 > version2
   static int compareVersions(String version1, String version2) {
+    print('compareVersions: "$version1" vs "$version2"');
+
     // Remove any leading 'v' or 'V' and clean the strings
     // Split by '+' to separate version from build number
     final v1Clean = version1.replaceFirst(RegExp(r'^[vV]'), '');
     final v2Clean = version2.replaceFirst(RegExp(r'^[vV]'), '');
+
+    print('Cleaned: "$v1Clean" vs "$v2Clean"');
 
     // Extract version and build parts
     final v1Parts = v1Clean.split('+');
@@ -21,6 +25,9 @@ class VersionService {
 
     final v1Build = v1Parts.length > 1 ? int.tryParse(v1Parts[1]) ?? 0 : 0;
     final v2Build = v2Parts.length > 1 ? int.tryParse(v2Parts[1]) ?? 0 : 0;
+
+    print('Main versions: "$v1" vs "$v2"');
+    print('Build numbers: $v1Build vs $v2Build');
 
     DebugConfig.debugLog(
       'Comparing versions: "$version1" vs "$version2" -> cleaned: "$v1" vs "$v2", builds: $v1Build vs $v2Build',
@@ -90,7 +97,18 @@ class VersionService {
 
   /// Check if newVersion is newer than currentVersion
   static bool isNewerVersion(String currentVersion, String newVersion) {
+    print('=== VERSION COMPARISON ===');
+    print('Current: "$currentVersion"');
+    print('New: "$newVersion"');
+
     final result = compareVersions(currentVersion, newVersion) < 0;
+
+    print(
+      'compareVersions result: ${compareVersions(currentVersion, newVersion)}',
+    );
+    print('isNewer result: $result');
+    print('========================');
+
     DebugConfig.debugLog(
       'isNewerVersion check: "$newVersion" newer than "$currentVersion"? $result',
       tag: 'VersionService',
