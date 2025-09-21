@@ -6,7 +6,7 @@ import 'services/auth_service.dart';
 import 'utils/debug_config.dart';
 
 class LocaleNotifier extends ChangeNotifier {
-  String _locale = 'en';
+  String _locale = 'el';
   String get locale => _locale;
 
   LocaleNotifier() {
@@ -266,7 +266,7 @@ class CompletionNotifier extends ChangeNotifier {
       final registrationResult = await Supabase.instance.client
           .from('dormitory_students')
           .select('application_status')
-          .eq('auth_user_id', currentUserId)
+          .eq('id', currentUserId)
           .maybeSingle();
 
       if (registrationResult != null) {
@@ -277,25 +277,14 @@ class CompletionNotifier extends ChangeNotifier {
       }
 
       // Check documents completion by verifying if documents exist for the student
-      // First get the actual student ID from dormitory_students table
-      final studentRecord = await Supabase.instance.client
-          .from('dormitory_students')
+      final studentId = currentUserId;
+      final documentsResult = await Supabase.instance.client
+          .from('student_documents')
           .select('id')
-          .eq('auth_user_id', currentUserId)
-          .maybeSingle();
+          .eq('student_id', studentId)
+          .limit(1);
 
-      if (studentRecord != null) {
-        final studentId = studentRecord['id'];
-        final documentsResult = await Supabase.instance.client
-            .from('student_documents')
-            .select('id')
-            .eq('student_id', studentId)
-            .limit(1);
-
-        _documentsCompleted = documentsResult.isNotEmpty;
-      } else {
-        _documentsCompleted = false;
-      }
+      _documentsCompleted = documentsResult.isNotEmpty;
 
       DebugConfig.debugLog(
         'Document completion check: completed=$_documentsCompleted',

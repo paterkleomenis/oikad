@@ -154,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // Header
                 Text(
-                  t(locale, 'welcome_back'),
+                  t(locale, 'welcome'),
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).brightness == Brightness.dark

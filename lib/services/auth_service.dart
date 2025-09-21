@@ -364,7 +364,7 @@ class AuthService {
       final profile = await _supabase
           .from('dormitory_students')
           .select('*')
-          .eq('auth_user_id', userId)
+          .eq('id', userId)
           .maybeSingle();
 
       return profile;
@@ -419,7 +419,7 @@ class AuthService {
       await _supabase
           .from('dormitory_students')
           .update(updateData)
-          .eq('auth_user_id', userId);
+          .eq('id', userId);
 
       // Also update auth metadata if name changed
       if (fullName != null) {
@@ -463,10 +463,7 @@ class AuthService {
       }
 
       // Delete user data from database (cascade will handle related tables)
-      await _supabase
-          .from('dormitory_students')
-          .delete()
-          .eq('auth_user_id', userId);
+      await _supabase.from('dormitory_students').delete().eq('id', userId);
 
       // Sign out user
       await signOut();
@@ -616,7 +613,7 @@ class AuthService {
       final existing = await _supabase
           .from('dormitory_students')
           .select('*')
-          .eq('auth_user_id', userId)
+          .eq('id', userId)
           .maybeSingle();
 
       if (existing == null) {
@@ -624,7 +621,7 @@ class AuthService {
         final nameParts = (fullName ?? user.userMetadata?['full_name'] ?? '')
             .split(' ');
         await _supabase.from('dormitory_students').insert({
-          'auth_user_id': userId,
+          'id': userId,
           'email': user.email,
           'name': nameParts.isNotEmpty ? nameParts.first : '',
           'family_name': nameParts.length > 1
@@ -645,7 +642,7 @@ class AuthService {
         await _supabase
             .from('dormitory_students')
             .update({'updated_at': DateTime.now().toIso8601String()})
-            .eq('auth_user_id', userId);
+            .eq('id', userId);
 
         if (kDebugMode) {
           print('Student profile exists, updated timestamp: $userId');
@@ -678,7 +675,7 @@ class AuthService {
       final existing = await _supabase
           .from('dormitory_students')
           .select('id')
-          .eq('auth_user_id', user.id)
+          .eq('id', user.id)
           .maybeSingle();
 
       if (existing != null) {
@@ -691,7 +688,7 @@ class AuthService {
       // Create new profile
       final nameParts = fullName.split(' ');
       await _supabase.from('dormitory_students').insert({
-        'auth_user_id': user.id,
+        'id': user.id,
         'email': user.email,
         'name': nameParts.isNotEmpty ? nameParts.first : '',
         'family_name': nameParts.length > 1 ? nameParts.skip(1).join(' ') : '',
@@ -782,22 +779,7 @@ class AuthService {
         };
       }
 
-      // Get the student record first to get the proper student_id for documents
-      final studentRecord = await _supabase
-          .from('dormitory_students')
-          .select('id')
-          .eq('auth_user_id', userId)
-          .maybeSingle();
-
-      if (studentRecord == null) {
-        return {
-          'total_documents': 0,
-          'application_status': 'no_profile',
-          'profile_completion': 0,
-        };
-      }
-
-      final studentId = studentRecord['id'];
+      final studentId = userId;
 
       // Get document count using the student ID
       final documents = await _supabase

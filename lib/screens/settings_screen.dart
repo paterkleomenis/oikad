@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../notifiers.dart';
 import '../services/localization_service.dart';
 import '../utils/app_info.dart';
-import '../utils/debug_config.dart';
+
 import '../services/update_service.dart';
 import '../widgets/update_dialog.dart';
 
@@ -69,7 +69,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          'App Updates',
+                          t(locale, 'app_updates'),
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
@@ -136,8 +136,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       secondary: const Icon(Icons.autorenew),
-                      title: Text('Auto-check for updates'),
-                      subtitle: Text('Automatically check for updates daily'),
+                      title: Text(t(locale, 'auto_check_updates')),
+                      subtitle: Text(t(locale, 'auto_check_updates_desc')),
                       value: _autoCheckUpdates,
                       onChanged: _toggleAutoCheck,
                     ),
@@ -225,7 +225,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          'Appearance',
+                          t(locale, 'appearance'),
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
@@ -243,29 +243,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ? Icons.light_mode
                             : Icons.brightness_auto,
                       ),
-                      title: const Text('Theme'),
+                      title: Text(t(locale, 'theme')),
                       subtitle: Text(
                         themeNotifier.themeMode == ThemeMode.dark
-                            ? 'Dark'
+                            ? t(locale, 'dark')
                             : themeNotifier.themeMode == ThemeMode.light
-                            ? 'Light'
-                            : 'System',
+                            ? t(locale, 'light')
+                            : t(locale, 'system'),
                       ),
                       trailing: DropdownButton<ThemeMode>(
                         value: themeNotifier.themeMode,
                         underline: const SizedBox(),
-                        items: const [
+                        items: [
                           DropdownMenuItem(
                             value: ThemeMode.system,
-                            child: Text('System'),
+                            child: Text(t(locale, 'system')),
                           ),
                           DropdownMenuItem(
                             value: ThemeMode.light,
-                            child: Text('Light'),
+                            child: Text(t(locale, 'light')),
                           ),
                           DropdownMenuItem(
                             value: ThemeMode.dark,
-                            child: Text('Dark'),
+                            child: Text(t(locale, 'dark')),
                           ),
                         ],
                         onChanged: (ThemeMode? mode) {
@@ -297,7 +297,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          'Language',
+                          t(locale, 'language'),
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
@@ -309,7 +309,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.translate),
-                      title: const Text('App Language'),
+                      title: Text(t(locale, 'app_language')),
                       subtitle: Text(locale == 'en' ? 'English' : 'Ελληνικά'),
                       trailing: DropdownButton<String>(
                         value: locale,
@@ -347,7 +347,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Icon(Icons.info, color: Theme.of(context).primaryColor),
                         const SizedBox(width: 12),
                         Text(
-                          'About',
+                          t(locale, 'about'),
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
@@ -358,65 +358,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.apps),
-                      title: const Text('OIKAD'),
-                      subtitle: const Text('Dormitory Registration System'),
+                      title: Text(t(locale, 'oikad')),
+                      subtitle: Text(
+                        t(locale, 'dormitory_registration_system'),
+                      ),
                     ),
 
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.code),
-                      title: const Text('Version'),
+                      title: Text(t(locale, 'version')),
                       subtitle: Text(
                         updateService.currentVersion ?? AppInfo.version,
                       ),
                     ),
-
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.bug_report),
-                      title: const Text('Report Issue'),
-                      subtitle: const Text('GitHub Issues'),
-                      trailing: const Icon(Icons.open_in_new, size: 16),
-                      onTap: () {
-                        // Open GitHub issues page
-                      },
-                    ),
-
-                    // Debug section (only visible in debug mode)
-                    if (DebugConfig.isDebugEnabled) ...[
-                      const Divider(),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          const Icon(Icons.developer_mode),
-                          const SizedBox(width: 16),
-                          Text(
-                            'Debug Tools',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.system_update),
-                        title: const Text('Test Update Check'),
-                        subtitle: const Text('Debug update detection'),
-                        trailing: const Icon(Icons.play_arrow),
-                        onTap: _debugTestUpdates,
-                      ),
-
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.info),
-                        title: const Text('Update Diagnostics'),
-                        subtitle: const Text('View update service info'),
-                        trailing: const Icon(Icons.info_outline),
-                        onTap: _showUpdateDiagnostics,
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -498,164 +453,5 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (update != null) {
       await showUpdateDialog(context, update);
     }
-  }
-
-  Future<void> _debugTestUpdates() async {
-    final updateService = context.read<UpdateService>();
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        title: Text('Testing Update Check...'),
-        content: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('Checking for updates...'),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      final result = await updateService.debugCheckUpdates();
-
-      if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Update Check Debug Results'),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Success: ${result['success']}'),
-                  const SizedBox(height: 8),
-                  if (result['current_version'] != null)
-                    Text('Current Version: ${result['current_version']}'),
-                  if (result['latest_version'] != null)
-                    Text('Latest Version: ${result['latest_version']}'),
-                  if (result['is_newer'] != null)
-                    Text('Is Newer: ${result['is_newer']}'),
-                  if (result['download_url'] != null)
-                    Text('Download URL: ${result['download_url']}'),
-                  if (result['tag_name'] != null)
-                    Text('Tag Name: ${result['tag_name']}'),
-                  if (result['releases_count'] != null)
-                    Text('Releases Found: ${result['releases_count']}'),
-                  if (result['error'] != null)
-                    Text('Error: ${result['error']}'),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
-              ),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Debug Test Failed'),
-            content: Text('Error: $e'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
-              ),
-            ],
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _showUpdateDiagnostics() async {
-    final updateService = context.read<UpdateService>();
-    final diagnostics = updateService.getDiagnosticInfo();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Update Service Diagnostics'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Current Version: ${diagnostics['currentVersion'] ?? 'Unknown'}',
-              ),
-              Text('Package Name: ${diagnostics['packageName'] ?? 'Unknown'}'),
-              Text('Is Checking: ${diagnostics['isChecking']}'),
-              Text('Is Downloading: ${diagnostics['isDownloading']}'),
-              Text('Has Update: ${diagnostics['hasUpdate']}'),
-              Text(
-                'Download Progress: ${diagnostics['downloadProgress']?.toStringAsFixed(1) ?? '0'}%',
-              ),
-              Text(
-                'Install Permission: ${diagnostics['installPermissionGranted']}',
-              ),
-              Text(
-                'Debug Force Updates: ${diagnostics['debugForceShowUpdates']}',
-              ),
-              if (diagnostics['availableUpdate'] != null) ...[
-                const Divider(),
-                Text('Available Update:'),
-                Text('  Version: ${diagnostics['availableUpdate']['version']}'),
-                Text(
-                  '  File Size: ${diagnostics['availableUpdate']['fileSize']} bytes',
-                ),
-                Text(
-                  '  Has Checksum: ${diagnostics['availableUpdate']['hasChecksum']}',
-                ),
-                Text(
-                  '  Is Critical: ${diagnostics['availableUpdate']['isCritical']}',
-                ),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-          TextButton(
-            onPressed: () {
-              final currentState = diagnostics['debugForceShowUpdates'] as bool;
-              updateService.enableDebugForceUpdates(!currentState);
-              Navigator.of(context).pop();
-              _showUpdateDiagnostics(); // Refresh dialog
-            },
-            child: Text(
-              (diagnostics['debugForceShowUpdates'] as bool)
-                  ? 'Disable Debug'
-                  : 'Enable Debug',
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await updateService.forceCheckForUpdates();
-            },
-            child: const Text('Force Check'),
-          ),
-        ],
-      ),
-    );
   }
 }

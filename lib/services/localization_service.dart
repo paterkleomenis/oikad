@@ -57,7 +57,7 @@ class LocalizationService {
       // Navigation and Screens
       'dashboard': 'Dashboard',
       'welcome': 'Welcome',
-      'welcome_back': 'Welcome back',
+
       'welcome_message': 'Welcome to the Student Document Portal',
       'getting_started': 'Getting Started',
 
@@ -96,6 +96,7 @@ class LocalizationService {
       'full_name_required': 'Full name is required',
       'full_name_too_short': 'Full name must be at least 2 characters',
       'confirm_password_required': 'Confirm password is required',
+      'confirm_password_hint': 'Re-enter your password',
       'email_required': 'Email is required',
       'invalid_email': 'Please enter a valid email address',
       'password_required': 'Password is required',
@@ -204,6 +205,20 @@ class LocalizationService {
       'no_completed_tasks': 'No completed tasks yet',
       'complete_registration_first': 'Complete your dormitory registration',
       'upload_required_documents': 'Upload your required documents',
+
+      // Settings
+      'app_updates': 'App Updates',
+      'auto_check_updates': 'Auto-check for updates',
+      'auto_check_updates_desc': 'Automatically check for updates daily',
+      'appearance': 'Appearance',
+      'theme': 'Theme',
+      'system': 'System',
+      'language': 'Language',
+      'app_language': 'App Language',
+      'about': 'About',
+      'oikad': 'OIKAD',
+      'dormitory_registration_system': 'Dormitory Registration System',
+      'version': 'Version',
 
       // Application Status
       'draft': 'Draft',
@@ -331,7 +346,7 @@ class LocalizationService {
       // Navigation and Screens
       'dashboard': 'Πίνακας Ελέγχου',
       'welcome': 'Καλώς ήρθατε',
-      'welcome_back': 'Καλώς ήρθες πίσω',
+
       'welcome_message': 'Καλώς ήρθατε στην Πύλη Δικαιολογητικών Φοιτητών',
       'getting_started': 'Ξεκινώντας',
 
@@ -371,6 +386,7 @@ class LocalizationService {
       'full_name_too_short':
           'Το πλήρες όνομα πρέπει να έχει τουλάχιστον 2 χαρακτήρες',
       'confirm_password_required': 'Η επιβεβαίωση κωδικού είναι υποχρεωτική',
+      'confirm_password_hint': 'Εισάγετε ξανά τον κωδικό σας',
       'email_required': 'Το email είναι υποχρεωτικό',
       'invalid_email': 'Παρακαλώ εισάγετε μια έγκυρη διεύθυνση email',
       'password_required': 'Ο κωδικός πρόσβασης είναι υποχρεωτικός',
@@ -480,6 +496,21 @@ class LocalizationService {
       'no_completed_tasks': 'Δεν υπάρχουν ολοκληρωμένα καθήκοντα',
       'complete_registration_first': 'Ολοκληρώστε την εγγραφή οικοτροφείου',
       'upload_required_documents': 'Ανεβάστε τα απαιτούμενα δικαιολογητικά',
+
+      // Settings
+      'app_updates': 'Ενημερώσεις Εφαρμογής',
+      'auto_check_updates': 'Αυτόματος έλεγχος ενημερώσεων',
+      'auto_check_updates_desc':
+          'Αυτόματος καθημερινός έλεγχος για ενημερώσεις',
+      'appearance': 'Εμφάνιση',
+      'theme': 'Θέμα',
+      'system': 'Σύστημα',
+      'language': 'Γλώσσα',
+      'app_language': 'Γλώσσα Εφαρμογής',
+      'about': 'Σχετικά',
+      'oikad': 'ΟΙΚΑΔ',
+      'dormitory_registration_system': 'Σύστημα Εγγραφής Οικοτροφείου',
+      'version': 'Έκδοση',
 
       // Application Status
       'draft': 'Πρόχειρο',

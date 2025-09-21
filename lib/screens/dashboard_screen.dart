@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../notifiers.dart';
@@ -21,7 +20,6 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  Map<String, dynamic>? _userProfile;
   Map<String, dynamic> _userStatistics = {};
   bool _isLoading = true;
 
@@ -44,18 +42,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         await context.read<CompletionNotifier>().refreshCompletionStatus();
       }
 
-      // Load user profile and statistics
-      final profile = await AuthService.getCurrentUserProfile();
+      // Load user statistics
       final stats = await _loadUserStatistics();
-
-      // Debug output to help troubleshoot
-      if (kDebugMode && profile != null) {
-        debugPrint('User profile loaded successfully');
-      }
 
       if (mounted) {
         setState(() {
-          _userProfile = profile;
           _userStatistics = stats;
           _isLoading = false;
         });
@@ -78,9 +69,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // Removed - using TextUtils.formatFileSize instead
 
   String _getUserDisplayName() {
-    if (_userProfile == null) {
+    // Get display name from auth user metadata first
+    final currentUser = AuthService.currentUser;
+    if (currentUser != null) {
+      // Try to get full_name from user metadata
+      final fullName = currentUser.userMetadata?['full_name']
+          ?.toString()
+          .trim();
+      if (fullName != null && fullName.isNotEmpty) {
+        return fullName;
+      }
+
       // Try to get user email as fallback
-      final userEmail = AuthService.currentUser?.email;
+      final userEmail = currentUser.email;
       if (userEmail != null) {
         // Extract name part from email (before @)
         final emailName = userEmail.split('@')[0];
@@ -95,41 +96,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             )
             .join(' ');
       }
-      return 'User';
-    }
-
-    final firstName = _userProfile!['name']?.toString().trim() ?? '';
-    final lastName = _userProfile!['family_name']?.toString().trim() ?? '';
-
-    // Try different combinations
-    if (firstName.isNotEmpty && lastName.isNotEmpty) {
-      return '$firstName $lastName';
-    } else if (firstName.isNotEmpty) {
-      return firstName;
-    } else if (lastName.isNotEmpty) {
-      return lastName;
-    }
-
-    // Check for other possible name fields
-    final fullName = _userProfile!['full_name']?.toString().trim() ?? '';
-    if (fullName.isNotEmpty) {
-      return fullName;
-    }
-
-    // Fallback to email-based name
-    final userEmail = AuthService.currentUser?.email;
-    if (userEmail != null) {
-      final emailName = userEmail.split('@')[0];
-      return emailName
-          .replaceAll('.', ' ')
-          .replaceAll('_', ' ')
-          .split(' ')
-          .map(
-            (word) => word.isNotEmpty
-                ? word[0].toUpperCase() + word.substring(1)
-                : '',
-          )
-          .join(' ');
     }
 
     return 'User';
@@ -200,15 +166,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(t(locale, 'dashboard')),
         centerTitle: true,
         automaticallyImplyLeading: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadDashboardData,
-            tooltip: t(locale, 'refresh'),
-          ),
           const LanguageSelector(),
           const ThemeToggle(),
           Row(
@@ -219,6 +179,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 icon: const Icon(Icons.more_vert),
                 onSelected: (value) {
                   switch (value) {
+                    case 'refresh':
+                      _loadDashboardData();
+                      break;
                     case 'settings':
                       _openSettings();
                       break;
@@ -231,6 +194,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   }
                 },
                 itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'refresh',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.refresh),
+                        const SizedBox(width: 8),
+                        Text(t(locale, 'refresh')),
+                      ],
+                    ),
+                  ),
                   PopupMenuItem(
                     value: 'settings',
                     child: Row(
@@ -270,6 +243,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: RefreshIndicator(
         onRefresh: _loadDashboardData,
         child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -308,7 +282,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${t(locale, 'welcome_back')}, ${_getUserDisplayName()}!',
+                              '${t(locale, 'welcome')}, ${_getUserDisplayName()}!',
                               style: Theme.of(context).textTheme.titleLarge
                                   ?.copyWith(
                                     fontWeight: FontWeight.bold,

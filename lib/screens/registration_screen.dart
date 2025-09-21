@@ -34,7 +34,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   String? _issuingAuthority;
   String? _university;
   String? _department;
-  String? _yearOfStudy;
+  int? _yearOfStudy;
   String? _email;
   String? _phone;
   String? _taxNumber;
@@ -89,7 +89,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       final existing = await Supabase.instance.client
           .from('dormitory_students')
           .select()
-          .eq('auth_user_id', currentUserId)
+          .eq('id', currentUserId)
           .maybeSingle();
 
       if (existing != null && mounted) {
@@ -161,7 +161,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         throw Exception('Validation failed: ${validationErrors.join(', ')}');
       }
 
-      studentData['auth_user_id'] = AuthService.currentUserId;
+      studentData['id'] = AuthService.currentUserId;
 
       final currentUserId = AuthService.currentUserId;
       if (currentUserId == null) {
@@ -171,7 +171,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       final existing = await Supabase.instance.client
           .from('dormitory_students')
           .select('id')
-          .eq('auth_user_id', currentUserId)
+          .eq('id', currentUserId)
           .maybeSingle();
 
       if (existing != null) {
@@ -181,7 +181,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ...studentData,
               'updated_at': DateTime.now().toIso8601String(),
             })
-            .eq('auth_user_id', currentUserId)
+            .eq('id', currentUserId)
             .timeout(const Duration(seconds: 30));
       } else {
         await Supabase.instance.client
@@ -234,11 +234,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   bool _isCompleteSubmission() {
     return _name?.trim().isNotEmpty == true &&
         _familyName?.trim().isNotEmpty == true &&
-        _email?.trim().isNotEmpty == true &&
+        _birthDate != null &&
+        _birthPlace?.trim().isNotEmpty == true &&
         _phone?.trim().isNotEmpty == true &&
-        _university?.trim().isNotEmpty == true &&
-        _department?.trim().isNotEmpty == true &&
-        _birthDate != null;
+        _email?.trim().isNotEmpty == true;
   }
 
   Map<String, dynamic> _sanitizeFormData() {
@@ -292,6 +291,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     }
     if (data['family_name'] == null || data['family_name'].toString().isEmpty) {
       errors.add('Family name is required');
+    }
+    if (data['birth_date'] == null || data['birth_date'].toString().isEmpty) {
+      errors.add('Birth date is required');
+    }
+    if (data['birth_place'] == null || data['birth_place'].toString().isEmpty) {
+      errors.add('Birth place is required');
+    }
+    if (data['phone'] == null || data['phone'].toString().isEmpty) {
+      errors.add('Phone is required');
     }
     if (data['email'] == null || data['email'].toString().isEmpty) {
       errors.add('Email is required');
@@ -388,6 +396,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       'birth_place',
                       (v) => _birthPlace = v,
                       initialValue: _birthPlace,
+                      required: true,
                     ),
                     _buildTextField(
                       locale,
@@ -416,8 +425,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     _buildTextField(
                       locale,
                       'year_of_study',
-                      (v) => _yearOfStudy = v,
-                      initialValue: _yearOfStudy,
+                      (v) => _yearOfStudy = int.tryParse(v ?? ''),
+                      initialValue: _yearOfStudy?.toString(),
+                      keyboardType: TextInputType.number,
                     ),
                     _buildDropdown(
                       locale,
@@ -430,6 +440,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       (v) => _email = v,
                       initialValue: _email,
                       keyboardType: TextInputType.emailAddress,
+                      required: true,
                     ),
                     _buildTextField(
                       locale,
@@ -437,6 +448,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       (v) => _phone = v,
                       initialValue: _phone,
                       keyboardType: TextInputType.phone,
+                      required: true,
                     ),
                     _buildTextField(
                       locale,
@@ -592,7 +604,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       child: TextFormField(
         initialValue: initialValue,
         decoration: InputDecoration(
-          labelText: getFieldLabel(key),
+          labelText: required
+              ? '${getFieldLabel(key)} (${t(locale, 'required')})'
+              : getFieldLabel(key),
           labelStyle: TextStyle(
             fontWeight: FontWeight.w500,
             color: Theme.of(context).brightness == Brightness.dark
@@ -677,7 +691,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         child: AbsorbPointer(
           child: TextFormField(
             decoration: InputDecoration(
-              labelText: t(locale, 'birth_date'),
+              labelText:
+                  '${t(locale, 'birth_date')} (${t(locale, 'required')})',
               hintText: t(locale, 'select_birth_date'),
               labelStyle: TextStyle(
                 fontWeight: FontWeight.w500,

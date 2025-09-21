@@ -96,21 +96,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         return;
       }
 
-      // Get the actual student ID from dormitory_students table
-      final studentRecord = await Supabase.instance.client
-          .from('dormitory_students')
-          .select('id')
-          .eq('auth_user_id', currentUserId)
-          .maybeSingle();
-
-      if (studentRecord == null) {
-        setState(() {
-          _isLoadingData = false;
-        });
-        return;
-      }
-
-      final studentId = studentRecord['id'];
+      final studentId = currentUserId;
 
       // Load existing document submission
       final submission = await DocumentService.getDocumentSubmission(studentId);
@@ -351,44 +337,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         throw Exception('User session expired. Please sign in again.');
       }
 
-      // Get the actual student ID from dormitory_students table
-      final studentRecord = await Supabase.instance.client
-          .from('dormitory_students')
-          .select('id')
-          .eq('auth_user_id', currentUserId)
-          .maybeSingle();
-
-      String studentId;
-      if (studentRecord == null) {
-        // Create student profile if it doesn't exist
-        final user = AuthService.currentUser;
-        if (user == null) {
-          throw Exception('User session expired');
-        }
-
-        final newStudentRecord = await Supabase.instance.client
-            .from('dormitory_students')
-            .insert({
-              'auth_user_id': currentUserId,
-              'name': user.userMetadata?['full_name']?.split(' ').first ?? '',
-              'family_name':
-                  user.userMetadata?['full_name']
-                      ?.split(' ')
-                      .skip(1)
-                      .join(' ') ??
-                  '',
-              'email': user.email ?? '',
-              'birth_date': '1990-01-01',
-              'id_card_number': 'TEMP000000',
-              'application_status': 'draft',
-            })
-            .select('id')
-            .single();
-
-        studentId = newStudentRecord['id'];
-      } else {
-        studentId = studentRecord['id'];
-      }
+      final studentId = currentUserId;
 
       List<Map<String, dynamic>> uploadedFiles = [];
 
