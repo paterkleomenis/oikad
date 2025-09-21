@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -236,27 +237,40 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
+  StreamSubscription<AuthState>? _authSubscription;
+  bool _isAuthenticated = false;
+
   @override
   void initState() {
     super.initState();
+    _isAuthenticated = AuthService.isAuthenticated;
     _checkAuthState();
   }
 
   void _checkAuthState() {
     // Listen to auth state changes
-    AuthService.authStateChanges.listen((data) {
+    _authSubscription = AuthService.authStateChanges.listen((authState) {
       if (mounted) {
-        setState(() {
-          // This will trigger a rebuild when auth state changes
-        });
+        final newAuthState = AuthService.isAuthenticated;
+        if (_isAuthenticated != newAuthState) {
+          setState(() {
+            _isAuthenticated = newAuthState;
+          });
+        }
       }
     });
   }
 
   @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Check if user is authenticated
-    if (AuthService.isAuthenticated) {
+    // Use the state variable instead of calling AuthService directly
+    if (_isAuthenticated) {
       return const DashboardScreen();
     } else {
       return const WelcomeScreen();

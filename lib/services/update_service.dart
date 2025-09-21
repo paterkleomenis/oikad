@@ -220,17 +220,22 @@ class UpdateService extends ChangeNotifier {
               try {
                 final update = AppUpdate.fromGitHubRelease(latestRelease);
 
-                DebugConfig.debugLog(
-                  'Checking if update is newer: current=$_currentVersion, latest=${update.version}',
-                  tag: 'UpdateService',
-                );
-
                 final isNewer =
                     _currentVersion != null &&
                     VersionService.isNewerVersion(
                       _currentVersion!,
                       update.version,
                     );
+
+                // Show debug dialog for version comparison (always show for debugging)
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _showVersionDebugDialog(
+                    latestRelease['tag_name'] ?? 'Unknown',
+                    update.version,
+                    _currentVersion ?? 'Unknown',
+                    isNewer,
+                  );
+                });
 
                 if (isNewer || _debugForceShowUpdates) {
                   // Show updates if newer OR if debug override is enabled
@@ -1080,6 +1085,46 @@ class UpdateService extends ChangeNotifier {
             }
           : null,
     };
+  }
+
+  /// Show debug dialog for version comparison
+  void _showVersionDebugDialog(
+    String githubTag,
+    String parsedVersion,
+    String currentVersion,
+    bool isNewer,
+  ) {
+    final context = WidgetsBinding.instance.focusManager.primaryFocus?.context;
+    if (context != null) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Version Debug Info'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('GitHub Tag: $githubTag'),
+                Text('Parsed Version: $parsedVersion'),
+                Text('Current Version: $currentVersion'),
+                Text('Is Newer: $isNewer'),
+                const SizedBox(height: 10),
+                Text(
+                  'Version Comparison: ${VersionService.compareVersions(currentVersion, parsedVersion)}',
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 
   @override

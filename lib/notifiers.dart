@@ -276,19 +276,29 @@ class CompletionNotifier extends ChangeNotifier {
         _registrationCompleted = false;
       }
 
-      // Check documents completion by verifying if document submission exists with 'submitted' status
-      final documentsResult = await Supabase.instance.client
-          .from('document_submissions')
-          .select('submission_status')
-          .eq('student_id', currentUserId)
+      // Check documents completion by verifying if documents exist for the student
+      // First get the actual student ID from dormitory_students table
+      final studentRecord = await Supabase.instance.client
+          .from('dormitory_students')
+          .select('id')
+          .eq('auth_user_id', currentUserId)
           .maybeSingle();
 
-      final documentStatus = documentsResult?['submission_status'];
-      _documentsCompleted =
-          documentsResult != null && documentStatus == 'submitted';
+      if (studentRecord != null) {
+        final studentId = studentRecord['id'];
+        final documentsResult = await Supabase.instance.client
+            .from('student_documents')
+            .select('id')
+            .eq('student_id', studentId)
+            .limit(1);
+
+        _documentsCompleted = documentsResult.isNotEmpty;
+      } else {
+        _documentsCompleted = false;
+      }
 
       DebugConfig.debugLog(
-        'Document completion check: result=$documentsResult, status=$documentStatus, completed=$_documentsCompleted',
+        'Document completion check: completed=$_documentsCompleted',
         tag: 'CompletionNotifier',
       );
 

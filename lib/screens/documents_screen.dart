@@ -8,6 +8,7 @@ import '../services/localization_service.dart';
 import '../services/document_service.dart';
 import '../services/auth_service.dart';
 import '../services/image_processing_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/debug_config.dart';
 import '../services/text_utils.dart';
 import 'welcome_screen.dart';
@@ -79,22 +80,86 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     }
 
     try {
-      final currentUserId = AuthService.currentUserId!;
+      final currentUserId = AuthService.currentUserId;
+      if (currentUserId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('User session expired. Please sign in again.'),
+            ),
+          );
+          // AuthWrapper will automatically handle navigation when user becomes unauthenticated
+        }
+        setState(() {
+          _isLoadingData = false;
+        });
+        return;
+      }
+
+      // Get the actual student ID from dormitory_students table
+      final studentRecord = await Supabase.instance.client
+          .from('dormitory_students')
+          .select('id')
+          .eq('auth_user_id', currentUserId)
+          .maybeSingle();
+
+      if (studentRecord == null) {
+        setState(() {
+          _isLoadingData = false;
+        });
+        return;
+      }
+
+      final studentId = studentRecord['id'];
 
       // Load existing document submission
-      final submission = await DocumentService.getDocumentSubmission(
-        currentUserId,
-      );
+      final submission = await DocumentService.getDocumentSubmission(studentId);
       if (submission != null) {
         setState(() {
           _consentAccepted = submission['consent_accepted'] ?? false;
         });
       }
 
+      // Debug: Check available categories
+      if (kDebugMode) {
+        final categories = await Supabase.instance.client
+            .from('document_categories')
+            .select('id, category_key');
+        print('DEBUG: Available categories:');
+        for (final cat in categories) {
+          print('  - ${cat['category_key']}: ID ${cat['id']}');
+        }
+      }
+
+      // Debug: Check all documents in database for this student
+      if (kDebugMode) {
+        final allDocs = await Supabase.instance.client
+            .from('student_documents')
+            .select('*')
+            .eq('student_id', studentId);
+        print('DEBUG: Found ${allDocs.length} total documents in database:');
+        for (final doc in allDocs) {
+          print(
+            '  - File: ${doc['original_file_name']}, Category ID: ${doc['category_id']}, Path: ${doc['file_path']}',
+          );
+        }
+      }
+
       // Load existing documents
       final existingDocuments = await DocumentService.getStudentDocuments(
-        currentUserId,
+        studentId,
       );
+
+      if (kDebugMode) {
+        print(
+          'Loaded ${existingDocuments.length} existing documents with category join:',
+        );
+        for (final doc in existingDocuments) {
+          print(
+            'Document: ${doc['original_file_name']}, Category: ${doc['category']}',
+          );
+        }
+      }
 
       // Create a map of category keys to document info for easier lookup
       final documentMap = <String, Map<String, dynamic>>{};
@@ -104,6 +169,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           final categoryKey = category['category_key'] as String?;
           if (categoryKey != null) {
             documentMap[categoryKey] = doc;
+            if (kDebugMode) {
+              print(
+                'Added to documentMap: $categoryKey -> ${doc['original_file_name']}',
+              );
+            }
           }
         }
       }
@@ -276,14 +346,56 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         throw Exception('User not authenticated');
       }
 
-      final currentUserId = AuthService.currentUserId!;
+      final currentUserId = AuthService.currentUserId;
+      if (currentUserId == null) {
+        throw Exception('User session expired. Please sign in again.');
+      }
+
+      // Get the actual student ID from dormitory_students table
+      final studentRecord = await Supabase.instance.client
+          .from('dormitory_students')
+          .select('id')
+          .eq('auth_user_id', currentUserId)
+          .maybeSingle();
+
+      String studentId;
+      if (studentRecord == null) {
+        // Create student profile if it doesn't exist
+        final user = AuthService.currentUser;
+        if (user == null) {
+          throw Exception('User session expired');
+        }
+
+        final newStudentRecord = await Supabase.instance.client
+            .from('dormitory_students')
+            .insert({
+              'auth_user_id': currentUserId,
+              'name': user.userMetadata?['full_name']?.split(' ').first ?? '',
+              'family_name':
+                  user.userMetadata?['full_name']
+                      ?.split(' ')
+                      .skip(1)
+                      .join(' ') ??
+                  '',
+              'email': user.email ?? '',
+              'birth_date': '1990-01-01',
+              'id_card_number': 'TEMP000000',
+              'application_status': 'draft',
+            })
+            .select('id')
+            .single();
+
+        studentId = newStudentRecord['id'];
+      } else {
+        studentId = studentRecord['id'];
+      }
 
       List<Map<String, dynamic>> uploadedFiles = [];
 
       // Upload student photo (only if it's a new file, not an existing one)
       if (_studentPhoto != null && _studentPhoto!.bytes != null) {
         final result = await DocumentService.uploadDocument(
-          studentId: currentUserId,
+          studentId: studentId,
           categoryKey: 'student_photo',
           file: _studentPhoto!,
         );
@@ -293,7 +405,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       // Upload ID front photo (only if it's a new file, not an existing one)
       if (_idFrontPhoto != null && _idFrontPhoto!.bytes != null) {
         final result = await DocumentService.uploadDocument(
-          studentId: currentUserId,
+          studentId: studentId,
           categoryKey: 'id_front',
           file: _idFrontPhoto!,
         );
@@ -303,7 +415,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       // Upload passport photo (only if it's a new file, not an existing one)
       if (_passportPhoto != null && _passportPhoto!.bytes != null) {
         final result = await DocumentService.uploadDocument(
-          studentId: currentUserId,
+          studentId: studentId,
           categoryKey: 'passport',
           file: _passportPhoto!,
         );
@@ -313,7 +425,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       // Upload ID back photo (only if it's a new file, not an existing one)
       if (_idBackPhoto != null && _idBackPhoto!.bytes != null) {
         final result = await DocumentService.uploadDocument(
-          studentId: currentUserId,
+          studentId: studentId,
           categoryKey: 'id_back',
           file: _idBackPhoto!,
         );
@@ -324,7 +436,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       if (_medicalCertificateFile != null &&
           _medicalCertificateFile!.bytes != null) {
         final result = await DocumentService.uploadDocument(
-          studentId: currentUserId,
+          studentId: studentId,
           categoryKey: 'medical_certificate',
           file: _medicalCertificateFile!,
         );
@@ -361,13 +473,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         }
       }
 
-      // Create or update document submission
-      await DocumentService.updateOrCreateDocumentSubmission(
-        studentId: currentUserId,
-        consentAccepted: _consentAccepted,
-        consentText: t(locale, 'consent_declaration'),
-        selectedCategoryIds: selectedCategoryIds,
-      );
+      // Documents are already uploaded individually via uploadDocument method
+      // No need for separate submission tracking
 
       // Only mark documents as completed if this is a submission (not draft) and we have essential documents
       if (mounted && !isDraft && _isDocumentsComplete()) {

@@ -51,35 +51,7 @@ class RegistrationDocumentService {
         }
       }
 
-      // Create document submission record
-      // Extract consent data
-      final consentAccepted = consentData['consentAccepted'] as bool? ?? false;
-      final consentText = consentData['consentText'] as String? ?? '';
-
-      // Get category IDs from category keys
-      final categoryKeys =
-          documents?.map((doc) => doc['categoryKey'] as String).toList() ?? [];
-
-      final selectedCategoryIds = <int>[];
-      if (categoryKeys.isNotEmpty) {
-        final categories = await DocumentService.getDocumentCategories();
-        for (final categoryKey in categoryKeys) {
-          final category = categories.firstWhere(
-            (cat) => cat['category_key'] == categoryKey,
-            orElse: () => <String, dynamic>{},
-          );
-          if (category.isNotEmpty && category['id'] != null) {
-            selectedCategoryIds.add(category['id'] as int);
-          }
-        }
-      }
-
-      await DocumentService.createDocumentSubmission(
-        studentId: studentId,
-        consentAccepted: consentAccepted,
-        consentText: consentText,
-        selectedCategoryIds: selectedCategoryIds,
-      );
+      // Documents are uploaded individually, no submission tracking needed
 
       return {
         'success': true,
@@ -112,9 +84,9 @@ class RegistrationDocumentService {
           .update({'student_id': newStudentId})
           .eq('student_id', oldUserId);
 
-      // Update submission records
+      // Update document records
       await _supabase
-          .from('document_submissions')
+          .from('student_documents')
           .update({'student_id': newStudentId})
           .eq('student_id', oldUserId);
 
@@ -304,9 +276,9 @@ class RegistrationDocumentService {
           .update({'student_id': studentId})
           .eq('verification_token', verificationToken);
 
-      // Update submission ownership
+      // Update document ownership
       await _supabase
-          .from('document_submissions')
+          .from('student_documents')
           .update({'student_id': studentId})
           .eq('verification_token', verificationToken);
 

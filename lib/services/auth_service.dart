@@ -200,17 +200,39 @@ class AuthService {
   /// Sign out current user
   static Future<Map<String, dynamic>> signOut() async {
     try {
+      if (kDebugMode) {
+        print('Starting sign out process...');
+      }
+
+      // Get user ID before signing out, as it will become null afterwards
+      final userIdBeforeSignOut = currentUserId;
+
+      if (kDebugMode) {
+        print('User ID before sign out: $userIdBeforeSignOut');
+      }
+
+      // Sign out from Supabase
       await _supabase.auth.signOut();
+
+      if (kDebugMode) {
+        print('Supabase sign out completed');
+      }
 
       // Clear only user-specific preferences, keep app settings like theme and locale
       final prefs = await SharedPreferences.getInstance();
-      final currentUserId = AuthService.currentUserId;
-      if (currentUserId != null) {
+      if (userIdBeforeSignOut != null) {
         // Clear user-specific completion data
-        await prefs.remove('registration_completed_$currentUserId');
-        await prefs.remove('documents_completed_$currentUserId');
-        await prefs.remove('completed_items_$currentUserId');
+        await prefs.remove('registration_completed_$userIdBeforeSignOut');
+        await prefs.remove('documents_completed_$userIdBeforeSignOut');
+        await prefs.remove('completed_items_$userIdBeforeSignOut');
+
+        if (kDebugMode) {
+          print(
+            'Cleared user-specific preferences for user: $userIdBeforeSignOut',
+          );
+        }
       }
+
       // Also clear any legacy non-user-specific completion data
       await prefs.remove('registration_completed');
       await prefs.remove('documents_completed');
@@ -218,18 +240,22 @@ class AuthService {
 
       if (kDebugMode) {
         print('User signed out successfully');
+        print('Current user after sign out: ${currentUser?.id ?? 'null'}');
       }
 
       return {'success': true, 'message': 'Signed out successfully'};
     } catch (e) {
       if (kDebugMode) {
         print('Sign out error: $e');
+        print('Error type: ${e.runtimeType}');
+        print('Stack trace: ${StackTrace.current}');
       }
 
       return {
         'success': false,
         'error': 'signout_error',
         'message': 'Failed to sign out. Please try again.',
+        'details': e.toString(),
       };
     }
   }
@@ -330,10 +356,15 @@ class AuthService {
         return null;
       }
 
+      final userId = currentUserId;
+      if (userId == null) {
+        return null;
+      }
+
       final profile = await _supabase
           .from('dormitory_students')
           .select('*')
-          .eq('auth_user_id', currentUserId!)
+          .eq('auth_user_id', userId)
           .maybeSingle();
 
       return profile;
@@ -376,10 +407,19 @@ class AuthService {
       if (idCardNumber != null) updateData['id_card_number'] = idCardNumber;
       if (additionalData != null) updateData.addAll(additionalData);
 
+      final userId = currentUserId;
+      if (userId == null) {
+        return {
+          'success': false,
+          'error': 'not_authenticated',
+          'message': 'User session expired. Please sign in again.',
+        };
+      }
+
       await _supabase
           .from('dormitory_students')
           .update(updateData)
-          .eq('auth_user_id', currentUserId!);
+          .eq('auth_user_id', userId);
 
       // Also update auth metadata if name changed
       if (fullName != null) {
@@ -413,7 +453,14 @@ class AuthService {
         };
       }
 
-      final userId = currentUserId!;
+      final userId = currentUserId;
+      if (userId == null) {
+        return {
+          'success': false,
+          'error': 'not_authenticated',
+          'message': 'User session expired. Please sign in again.',
+        };
+      }
 
       // Delete user data from database (cascade will handle related tables)
       await _supabase
@@ -451,7 +498,10 @@ class AuthService {
       final session = _supabase.auth.currentSession;
       if (session != null && isAuthenticated) {
         // Update last login
-        await _updateLastLogin(currentUserId!);
+        final userId = currentUserId;
+        if (userId != null) {
+          await _updateLastLogin(userId);
+        }
 
         // Ensure profile exists
         await ensureStudentProfile();
@@ -500,7 +550,16 @@ class AuthService {
         };
       }
 
-      final email = currentUser!.email;
+      final user = currentUser;
+      if (user == null) {
+        return {
+          'success': false,
+          'error': 'not_authenticated',
+          'message': 'User session expired. Please sign in again.',
+        };
+      }
+
+      final email = user.email;
       if (email == null) {
         return {
           'success': false,
@@ -543,7 +602,14 @@ class AuthService {
         };
       }
 
-      final user = currentUser!;
+      final user = currentUser;
+      if (user == null) {
+        return {
+          'success': false,
+          'error': 'not_authenticated',
+          'message': 'User session expired. Please sign in again.',
+        };
+      }
       final userId = user.id;
 
       // Check if profile exists
@@ -707,7 +773,14 @@ class AuthService {
         };
       }
 
-      final userId = currentUserId!;
+      final userId = currentUserId;
+      if (userId == null) {
+        return {
+          'total_documents': 0,
+          'application_status': 'not_authenticated',
+          'profile_completion': 0,
+        };
+      }
 
       // Get the student record first to get the proper student_id for documents
       final studentRecord = await _supabase

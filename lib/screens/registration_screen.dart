@@ -70,10 +70,26 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     });
 
     try {
+      final currentUserId = AuthService.currentUserId;
+      if (currentUserId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('User session expired. Please sign in again.'),
+            ),
+          );
+          // AuthWrapper will automatically handle navigation when user becomes unauthenticated
+        }
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
       final existing = await Supabase.instance.client
           .from('dormitory_students')
           .select()
-          .eq('auth_user_id', AuthService.currentUserId!)
+          .eq('auth_user_id', currentUserId)
           .maybeSingle();
 
       if (existing != null && mounted) {
@@ -147,10 +163,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
       studentData['auth_user_id'] = AuthService.currentUserId;
 
+      final currentUserId = AuthService.currentUserId;
+      if (currentUserId == null) {
+        throw Exception('User session expired. Please sign in again.');
+      }
+
       final existing = await Supabase.instance.client
           .from('dormitory_students')
           .select('id')
-          .eq('auth_user_id', AuthService.currentUserId!)
+          .eq('auth_user_id', currentUserId)
           .maybeSingle();
 
       if (existing != null) {
@@ -160,7 +181,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ...studentData,
               'updated_at': DateTime.now().toIso8601String(),
             })
-            .eq('auth_user_id', AuthService.currentUserId!)
+            .eq('auth_user_id', currentUserId)
             .timeout(const Duration(seconds: 30));
       } else {
         await Supabase.instance.client

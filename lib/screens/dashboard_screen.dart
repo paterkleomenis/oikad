@@ -8,6 +8,7 @@ import '../services/update_service.dart';
 import '../widgets/widgets.dart';
 import '../widgets/update_checker.dart';
 import '../widgets/update_dialog.dart';
+import 'welcome_screen.dart';
 import 'registration_screen.dart';
 import 'documents_screen.dart';
 import 'settings_screen.dart';
@@ -154,7 +155,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               try {
                 await AuthService.signOut();
                 if (mounted) {
-                  navigator.pushReplacementNamed('/welcome');
+                  navigator.pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (context) => const WelcomeScreen(),
+                    ),
+                    (route) => false,
+                  );
                 }
               } catch (e) {
                 if (mounted) {

@@ -96,11 +96,16 @@ class DocumentService {
           .getPublicUrl(filePath);
 
       // Get category info
+      // Look up category ID
       final category = await _supabase
           .from('document_categories')
           .select('id')
           .eq('category_key', categoryKey)
           .single();
+
+      if (kDebugMode) {
+        print('Found category for $categoryKey: ${category['id']}');
+      }
 
       // Save document metadata to database WITHOUT any thumbnail data
       final documentData = {
@@ -112,24 +117,28 @@ class DocumentService {
         'file_size_bytes': finalSize,
         'file_type': fileExtension,
         'mime_type': 'application/octet-stream',
-        'upload_status': 'uploaded',
-        'uploaded_at': DateTime.now().toIso8601String(),
-        // NO thumbnail data at all
+        'compressed_size_bytes': finalSize,
+        'compression_ratio': compressionRatio,
+        'metadata': <String, dynamic>{},
       };
 
-      final result = await _supabase
-          .from('student_documents')
-          .insert(documentData)
-          .select()
-          .single();
+      if (kDebugMode) {
+        print('Inserting document data: $documentData');
+      }
+
+      // Simple insert without trying to return data
+      await _supabase.from('student_documents').insert(documentData);
+
+      if (kDebugMode) {
+        print('Document inserted successfully for category: $categoryKey');
+      }
 
       return {
         'success': true,
-        'document_id': result['id'],
+        'document_id': null,
         'public_url': publicUrl,
         'file_path': filePath,
         'compression_ratio': compressionRatio,
-        'message': 'Document uploaded successfully (no thumbnails)',
       };
     } catch (e) {
       if (kDebugMode) {
@@ -196,133 +205,24 @@ class DocumentService {
     }
   }
 
-  /// Create a document submission record
-  static Future<Map<String, dynamic>> createDocumentSubmission({
-    required String studentId,
-    required bool consentAccepted,
-    required String consentText,
-    required List<int> selectedCategoryIds,
-    String? userAgent,
-    String? ipAddress,
-  }) async {
-    try {
-      final submissionData = {
-        'student_id': studentId,
-        'consent_accepted': consentAccepted,
-        'consent_text': consentText,
-        'consent_date': DateTime.now().toIso8601String(),
-        'selected_categories': selectedCategoryIds,
-        'submission_status': 'submitted',
-        'submitted_by_ip': ipAddress,
-        'user_agent': userAgent,
-      };
-
-      final response = await _supabase
-          .from('document_submissions')
-          .insert(submissionData)
-          .select()
-          .single();
-
-      return {
-        'success': true,
-        'submission_id': response['id'],
-        'message': 'Document submission created successfully',
-      };
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error creating document submission: $e');
-      }
-      return {
-        'success': false,
-        'error': e.toString(),
-        'message': 'Failed to create submission: ${e.toString()}',
-      };
-    }
-  }
-
   /// Get document submission for a student
   static Future<Map<String, dynamic>?> getDocumentSubmission(
     String studentId,
   ) async {
     try {
-      final submission = await _supabase
-          .from('document_submissions')
+      final documents = await _supabase
+          .from('student_documents')
           .select('*')
           .eq('student_id', studentId)
+          .limit(1)
           .maybeSingle();
 
-      return submission;
+      return documents;
     } catch (e) {
       if (kDebugMode) {
-        print('Error fetching document submission: $e');
+        print('Error fetching student documents: $e');
       }
       return null;
-    }
-  }
-
-  /// Update existing document submission or create new one
-  static Future<Map<String, dynamic>> updateOrCreateDocumentSubmission({
-    required String studentId,
-    required bool consentAccepted,
-    required String consentText,
-    required List<int> selectedCategoryIds,
-    String? userAgent,
-    String? ipAddress,
-  }) async {
-    try {
-      // Check if submission already exists
-      final existingSubmission = await _supabase
-          .from('document_submissions')
-          .select('id')
-          .eq('student_id', studentId)
-          .maybeSingle();
-
-      final submissionData = {
-        'student_id': studentId,
-        'consent_accepted': consentAccepted,
-        'consent_text': consentText,
-        'consent_date': DateTime.now().toIso8601String(),
-        'selected_categories': selectedCategoryIds,
-        'submission_status': 'submitted',
-        'submitted_by_ip': ipAddress,
-        'user_agent': userAgent,
-      };
-
-      Map<String, dynamic> response;
-
-      if (existingSubmission != null) {
-        // Update existing submission
-        response = await _supabase
-            .from('document_submissions')
-            .update(submissionData)
-            .eq('id', existingSubmission['id'])
-            .select()
-            .single();
-      } else {
-        // Create new submission
-        response = await _supabase
-            .from('document_submissions')
-            .insert(submissionData)
-            .select()
-            .single();
-      }
-
-      return {
-        'success': true,
-        'submission_id': response['id'],
-        'message': existingSubmission != null
-            ? 'Document submission updated successfully'
-            : 'Document submission created successfully',
-      };
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error updating/creating document submission: $e');
-      }
-      return {
-        'success': false,
-        'error': e.toString(),
-        'message': 'Failed to update/create submission: ${e.toString()}',
-      };
     }
   }
 
