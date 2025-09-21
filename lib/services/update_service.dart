@@ -230,7 +230,8 @@ class UpdateService extends ChangeNotifier {
                 // Debug info already embedded in update description above
 
                 if (isNewer || _debugForceShowUpdates) {
-                  // Update already set above with debug info
+                  // Set the available update
+                  _availableUpdate = update;
                   DebugConfig.debugLog(
                     'Update found! Setting available update to version ${update.version} (isNewer: $isNewer, debugForce: $_debugForceShowUpdates)',
                     tag: 'UpdateService',

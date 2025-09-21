@@ -85,27 +85,12 @@ class _UpdateCheckerState extends State<UpdateChecker>
         );
       }
 
-      print('UpdateChecker: hasUpdate=$hasUpdate, mounted=$mounted');
-      print(
-        'UpdateChecker: availableUpdate=${updateService.availableUpdate?.version}',
-      );
-
       if (hasUpdate && mounted) {
         final update = updateService.availableUpdate;
         if (update != null) {
-          print(
-            'UpdateChecker: Showing update dialog for version ${update.version}',
-          );
           // Show update dialog
           await showUpdateDialog(context, update);
-          print('UpdateChecker: Update dialog completed');
-        } else {
-          print('UpdateChecker: hasUpdate=true but availableUpdate is null');
         }
-      } else {
-        print(
-          'UpdateChecker: Not showing dialog - hasUpdate=$hasUpdate, mounted=$mounted',
-        );
       }
     } catch (e) {
       if (kDebugMode) {
@@ -186,9 +171,6 @@ class UpdateCheckButton extends StatelessWidget {
                     if (hasUpdate && context.mounted) {
                       final update = updateService.availableUpdate;
                       if (update != null) {
-                        print(
-                          'UpdateCheckButton: Showing update dialog for version ${update.version}',
-                        );
                         await showUpdateDialog(context, update);
                       }
                     } else if (context.mounted) {
