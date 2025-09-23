@@ -706,6 +706,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ? ''
                   : '${_birthDate!.day.toString().padLeft(2, '0')}/${_birthDate!.month.toString().padLeft(2, '0')}/${_birthDate!.year}',
             ),
+            validator: (value) {
+              if (_birthDate == null) {
+                return '${t(locale, 'birth_date')} ${t(locale, 'required')}';
+              }
+              return null;
+            },
           ),
         ),
       ),

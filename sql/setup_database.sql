@@ -182,6 +182,40 @@ CREATE INDEX IF NOT EXISTS idx_document_submissions_student_id ON document_submi
 CREATE INDEX IF NOT EXISTS idx_document_submissions_submission_date ON document_submissions(submission_date);
 CREATE INDEX IF NOT EXISTS idx_document_submissions_status ON document_submissions(submission_status);
 
+-- Student Receipts Table
+CREATE TABLE IF NOT EXISTS student_receipts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID REFERENCES dormitory_students(id) ON DELETE CASCADE,
+
+    -- File Information
+    file_name VARCHAR(255) NOT NULL,
+    original_file_name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    file_size_bytes BIGINT NOT NULL,
+    file_type VARCHAR(50) NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+
+    -- Receipt Information
+    concerns_month SMALLINT CHECK (concerns_month >= 1 AND concerns_month <= 12),
+    concerns_year INTEGER,
+
+    -- Compression Information
+    compressed_size_bytes BIGINT DEFAULT 0,
+    compression_ratio NUMERIC DEFAULT 0.00,
+
+    -- Metadata and Timestamps
+    metadata JSONB DEFAULT '{}'::jsonb,
+    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Student Receipts Indexes
+CREATE INDEX IF NOT EXISTS idx_student_receipts_student_id ON student_receipts(student_id);
+CREATE INDEX IF NOT EXISTS idx_student_receipts_concerns_year ON student_receipts(concerns_year);
+CREATE INDEX IF NOT EXISTS idx_student_receipts_concerns_month ON student_receipts(concerns_month);
+CREATE INDEX IF NOT EXISTS idx_student_receipts_uploaded_at ON student_receipts(uploaded_at);
+
 -- ===========================================================================
 -- 6. UNIQUE CONSTRAINTS
 -- ===========================================================================
@@ -223,6 +257,10 @@ CREATE TRIGGER update_student_documents_updated_at
 
 CREATE TRIGGER update_document_submissions_updated_at
     BEFORE UPDATE ON document_submissions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_student_receipts_updated_at
+    BEFORE UPDATE ON student_receipts
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ===========================================================================

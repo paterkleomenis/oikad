@@ -313,14 +313,74 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   Future<void> _saveDocuments({bool isDraft = false}) async {
     final locale = context.read<LocaleNotifier>().locale;
 
-    if (!isDraft && !_consentAccepted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(t(locale, 'consent_required')),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
+    // For non-draft submissions, validate all required fields
+    if (!isDraft) {
+      if (!_consentAccepted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(t(locale, 'consent_required')),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Check if student photo is uploaded
+      if (_studentPhoto == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(t(locale, 'student_photo_required')),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Check if identity document is uploaded
+      bool hasIdentityDocument = false;
+      if (_selectedDocumentType == 'id') {
+        hasIdentityDocument = _idFrontPhoto != null && _idBackPhoto != null;
+        if (!hasIdentityDocument) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(t(locale, 'id_documents_required')),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return;
+        }
+      } else if (_selectedDocumentType == 'passport') {
+        hasIdentityDocument = _passportPhoto != null;
+        if (!hasIdentityDocument) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(t(locale, 'passport_required')),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return;
+        }
+      } else {
+        // No document type selected
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(t(locale, 'document_type_required')),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Check if medical certificate is uploaded
+      if (_medicalCertificateFile == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(t(locale, 'medical_certificate_required')),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
     }
 
     setState(() {
@@ -484,9 +544,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     }
 
     final isComplete =
-        _studentPhoto != null && hasIdentityDocument && _consentAccepted;
+        _studentPhoto != null &&
+        hasIdentityDocument &&
+        _medicalCertificateFile != null &&
+        _consentAccepted;
     DebugConfig.debugLog(
-      'Document completion check: studentPhoto=${_studentPhoto != null}, hasIdentityDocument=$hasIdentityDocument, consentAccepted=$_consentAccepted, isComplete=$isComplete',
+      'Document completion check: studentPhoto=${_studentPhoto != null}, hasIdentityDocument=$hasIdentityDocument, medicalCertificate=${_medicalCertificateFile != null}, consentAccepted=$_consentAccepted, isComplete=$isComplete',
       tag: 'DocumentsScreen',
     );
     return isComplete;

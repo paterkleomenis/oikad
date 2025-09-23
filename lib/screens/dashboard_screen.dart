@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../notifiers.dart';
 import '../services/localization_service.dart';
 import '../services/auth_service.dart';
+import '../services/receipts_service.dart';
 import '../services/update_service.dart';
 import '../widgets/widgets.dart';
 import '../widgets/update_checker.dart';
@@ -10,6 +12,7 @@ import '../widgets/update_dialog.dart';
 import 'welcome_screen.dart';
 import 'registration_screen.dart';
 import 'documents_screen.dart';
+import 'receipts_screen.dart';
 import 'settings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -62,8 +65,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<Map<String, dynamic>> _loadUserStatistics() async {
-    // Mock data - replace with actual API calls
-    return {'total_documents': 3, 'application_status': 'submitted'};
+    try {
+      final user = AuthService.currentUser;
+      if (user == null) {
+        return {'total_documents': 0, 'total_receipts': 0};
+      }
+
+      // Get receipts statistics
+      final receiptsStats = await ReceiptsService.getReceiptStatistics(user.id);
+
+      // Get other user statistics
+      final authStats = await AuthService.getUserStatistics();
+
+      return {
+        'total_documents': authStats['total_documents'] ?? 0,
+        'total_receipts': receiptsStats['total_count'] ?? 0,
+        'current_year_receipts': receiptsStats['current_year_count'] ?? 0,
+      };
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading user statistics: $e');
+      }
+      return {'total_documents': 0, 'total_receipts': 0};
+    }
   }
 
   // Removed - using TextUtils.formatFileSize instead
@@ -332,12 +356,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: _buildStatCard(
                       context,
                       locale,
-                      'application_status',
-                      t(
-                        locale,
-                        _userStatistics['application_status'] ?? 'pending',
+                      'receipts',
+                      '${_userStatistics['total_receipts'] ?? 0}',
+                      Icons.receipt_outlined,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const ReceiptsScreen(),
+                        ),
                       ),
-                      Icons.assignment_outlined,
                     ),
                   ),
                 ],

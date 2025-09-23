@@ -19,8 +19,6 @@ class AuthService {
     required String email,
     required String password,
     required String fullName,
-    String? phone,
-    String? idCardNumber,
   }) async {
     try {
       if (kDebugMode) {
@@ -48,11 +46,7 @@ class AuthService {
       final response = await _supabase.auth.signUp(
         email: email,
         password: password,
-        data: {
-          'full_name': fullName,
-          'phone': phone,
-          'id_card_number': idCardNumber,
-        },
+        data: {'full_name': fullName},
       );
 
       if (response.user == null) {
@@ -71,8 +65,6 @@ class AuthService {
       final profileResult = await _createStudentProfile(
         response.user!,
         fullName,
-        phone,
-        idCardNumber,
       );
 
       if (!profileResult['success']) {
@@ -587,8 +579,6 @@ class AuthService {
   /// Ensure student profile exists (create if missing or update if needed)
   static Future<Map<String, dynamic>> ensureStudentProfile({
     String? fullName,
-    String? phone,
-    String? idCardNumber,
   }) async {
     try {
       if (!isAuthenticated) {
@@ -627,9 +617,6 @@ class AuthService {
           'family_name': nameParts.length > 1
               ? nameParts.skip(1).join(' ')
               : '',
-          'phone': phone ?? user.userMetadata?['phone'],
-          'id_card_number':
-              idCardNumber ?? user.userMetadata?['id_card_number'],
           'created_at': DateTime.now().toIso8601String(),
           'application_status': 'draft',
         });
@@ -667,8 +654,6 @@ class AuthService {
   static Future<Map<String, dynamic>> _createStudentProfile(
     User user,
     String fullName,
-    String? phone,
-    String? idCardNumber,
   ) async {
     try {
       // First check if profile already exists
@@ -692,8 +677,6 @@ class AuthService {
         'email': user.email,
         'name': nameParts.isNotEmpty ? nameParts.first : '',
         'family_name': nameParts.length > 1 ? nameParts.skip(1).join(' ') : '',
-        'phone': phone,
-        'id_card_number': idCardNumber,
         'created_at': DateTime.now().toIso8601String(),
         'application_status': 'draft',
       });
@@ -763,20 +746,12 @@ class AuthService {
   static Future<Map<String, dynamic>> getUserStatistics() async {
     try {
       if (!isAuthenticated) {
-        return {
-          'total_documents': 0,
-          'application_status': 'not_authenticated',
-          'profile_completion': 0,
-        };
+        return {'total_documents': 0, 'profile_completion': 0};
       }
 
       final userId = currentUserId;
       if (userId == null) {
-        return {
-          'total_documents': 0,
-          'application_status': 'not_authenticated',
-          'profile_completion': 0,
-        };
+        return {'total_documents': 0, 'profile_completion': 0};
       }
 
       final studentId = userId;
@@ -794,7 +769,6 @@ class AuthService {
 
       return {
         'total_documents': documents.length,
-        'application_status': profile?['application_status'] ?? 'draft',
         'profile_completion': profileCompletion,
         'created_at': profile?['created_at'],
         'updated_at': profile?['updated_at'],
@@ -804,11 +778,7 @@ class AuthService {
         print('Error getting user statistics: $e');
       }
 
-      return {
-        'total_documents': 0,
-        'application_status': 'error',
-        'profile_completion': 0,
-      };
+      return {'total_documents': 0, 'profile_completion': 0};
     }
   }
 
@@ -817,17 +787,13 @@ class AuthService {
     if (profile == null) return 0;
 
     int completedFields = 0;
-    const totalFields = 6; // Adjust based on required fields
+    const totalFields = 4; // Adjust based on required fields
 
     if (profile['name']?.toString().isNotEmpty == true) completedFields++;
     if (profile['family_name']?.toString().isNotEmpty == true) {
       completedFields++;
     }
     if (profile['email']?.toString().isNotEmpty == true) completedFields++;
-    if (profile['phone']?.toString().isNotEmpty == true) completedFields++;
-    if (profile['id_card_number']?.toString().isNotEmpty == true) {
-      completedFields++;
-    }
     if (profile['university']?.toString().isNotEmpty == true) {
       completedFields++;
     }

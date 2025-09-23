@@ -181,6 +181,12 @@ class LocalizationService {
       'documents_saved': 'Documents saved successfully',
       'file_uploaded': 'File uploaded successfully',
       'file_upload_failed': 'File upload failed',
+      'student_photo_required': 'Student photo is required',
+      'id_documents_required': 'Both ID front and back photos are required',
+      'passport_required': 'Passport photo is required',
+      'document_type_required':
+          'Please select a document type (ID or Passport)',
+      'medical_certificate_required': 'Medical certificate is required',
       'max_file_size': 'Maximum file size',
       'allowed_formats': 'Allowed formats',
       'select_file': 'Select File',
@@ -193,7 +199,7 @@ class LocalizationService {
       // Dashboard
       'overview': 'Overview',
       'documents_uploaded': 'Documents Uploaded',
-      'application_status': 'Application Status',
+      'receipts': 'Receipts',
       'profile_completion': 'Profile Completion',
       'days_since_registration': 'Days Since Registration',
       'quick_actions': 'Quick Actions',
@@ -227,6 +233,30 @@ class LocalizationService {
       'approved': 'Approved',
       'rejected': 'Rejected',
       'not_started': 'Not Started',
+
+      // Receipts
+      'month': 'Month',
+      'year': 'Year',
+      'all_years': 'All Years',
+      'all_months': 'All Months',
+      'no_receipts_found': 'No receipts found',
+      'uploaded': 'Uploaded',
+      'size': 'Size',
+      'downloading': 'Downloading...',
+      'download_failed': 'Download failed',
+      'download_error': 'Download error',
+      'download_cancelled': 'Download cancelled',
+      'choose_save_location': 'Choose save location',
+      'file_saved_to': 'File saved to',
+      'web_download_not_supported':
+          'Download not supported in web browser. Please use the mobile app or desktop version.',
+      'download_options': 'Download Options',
+      'choose_download_location': 'Choose where to save the file:',
+      'downloads_folder': 'Downloads Folder',
+      'choose_location': 'Choose Location',
+      'downloads_folder_error': 'Cannot access Downloads folder',
+      'app_documents': 'App Documents',
+      'documents_folder_error': 'Cannot access Documents folder',
 
       // Messages
       'registration_complete': 'Registration Complete',
@@ -471,6 +501,14 @@ class LocalizationService {
       'documents_saved': 'Τα δικαιολογητικά αποθηκεύτηκαν με επιτυχία',
       'file_uploaded': 'Το αρχείο ανέβηκε με επιτυχία',
       'file_upload_failed': 'Το ανέβασμα του αρχείου απέτυχε',
+      'student_photo_required': 'Η φωτογραφία φοιτητή είναι υποχρεωτική',
+      'id_documents_required':
+          'Και οι δύο φωτογραφίες της ταυτότητας (μπροστά και πίσω) είναι υποχρεωτικές',
+      'passport_required': 'Η φωτογραφία του διαβατηρίου είναι υποχρεωτική',
+      'document_type_required':
+          'Παρακαλώ επιλέξτε τύπο εγγράφου (Ταυτότητα ή Διαβατήριο)',
+      'medical_certificate_required':
+          'Το ιατρικό πιστοποιητικό είναι υποχρεωτικό',
       'max_file_size': 'Μέγιστο μέγεθος αρχείου',
       'allowed_formats': 'Επιτρεπόμενες μορφές',
       'select_file': 'Επιλογή Αρχείου',
@@ -484,7 +522,7 @@ class LocalizationService {
       // Dashboard
       'overview': 'Επισκόπηση',
       'documents_uploaded': 'Δικαιολογητικά',
-      'application_status': 'Κατάσταση Αίτησης',
+      'receipts': 'Αποδείξεις',
       'profile_completion': 'Ολοκλήρωση Προφίλ',
       'days_since_registration': 'Ημέρες από την Εγγραφή',
       'quick_actions': 'Γρήγορες Ενέργειες',
@@ -519,6 +557,32 @@ class LocalizationService {
       'approved': 'Εγκρίθηκε',
       'rejected': 'Απορρίφθηκε',
       'not_started': 'Δεν Ξεκίνησε',
+
+      // Receipts
+      'month': 'Μήνας',
+      'year': 'Έτος',
+      'all_years': 'Όλα τα Έτη',
+      'all_months': 'Όλους τους Μήνες',
+      'no_receipts_found': 'Δεν βρέθηκαν αποδείξεις',
+      'uploaded': 'Ανέβηκε',
+      'size': 'Μέγεθος',
+      'downloading': 'Λήψη σε εξέλιξη...',
+      'download_failed': 'Η λήψη απέτυχε',
+      'download_error': 'Σφάλμα λήψης',
+      'download_cancelled': 'Η λήψη ακυρώθηκε',
+      'choose_save_location': 'Επιλογή τοποθεσίας αποθήκευσης',
+      'file_saved_to': 'Το αρχείο αποθηκεύτηκε στη διαδρομή',
+      'web_download_not_supported':
+          'Η λήψη δεν υποστηρίζεται στον περιηγητή ιστού. Παρακαλώ χρησιμοποιήστε την εφαρμογή κινητού ή την έκδοση υπολογιστή.',
+      'download_options': 'Επιλογές Λήψης',
+      'choose_download_location': 'Επιλέξτε πού να αποθηκευτεί το αρχείο:',
+      'downloads_folder': 'Φάκελος Λήψεων',
+      'choose_location': 'Επιλογή Τοποθεσίας',
+      'downloads_folder_error':
+          'Δεν είναι δυνατή η πρόσβαση στον φάκελο Λήψεων',
+      'app_documents': 'Έγγραφα Εφαρμογής',
+      'documents_folder_error':
+          'Δεν είναι δυνατή η πρόσβαση στον φάκελο Εγγράφων',
 
       // Messages
       'registration_complete': 'Η εγγραφή ολοκληρώθηκε',
