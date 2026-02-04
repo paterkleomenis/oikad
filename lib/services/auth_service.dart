@@ -3,10 +3,28 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  static final SupabaseClient _supabase = Supabase.instance.client;
+  static SupabaseClient? get _supabase {
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static bool get isAvailable => _supabase != null;
+
+  static Map<String, dynamic> _configError([String? action]) {
+    return {
+      'success': false,
+      'error': 'config_error',
+      'message':
+          'Supabase is not configured. Check release .env or dart-define values.',
+      if (action != null) 'action': action,
+    };
+  }
 
   /// Get current authenticated user
-  static User? get currentUser => _supabase.auth.currentUser;
+  static User? get currentUser => _supabase?.auth.currentUser;
 
   /// Check if user is authenticated
   static bool get isAuthenticated => currentUser != null;
@@ -21,6 +39,11 @@ class AuthService {
     required String fullName,
   }) async {
     try {
+      final supabase = _supabase;
+      if (supabase == null) {
+        return _configError('register');
+      }
+
       if (kDebugMode) {
         print('Attempting to register new user');
       }
@@ -43,7 +66,7 @@ class AuthService {
       }
 
       // Register with Supabase Auth
-      final response = await _supabase.auth.signUp(
+      final response = await supabase.auth.signUp(
         email: email,
         password: password,
         data: {'full_name': fullName},
@@ -118,6 +141,11 @@ class AuthService {
     required String password,
   }) async {
     try {
+      final supabase = _supabase;
+      if (supabase == null) {
+        return _configError('sign_in');
+      }
+
       if (kDebugMode) {
         print('Attempting to sign in user');
       }
@@ -132,7 +160,7 @@ class AuthService {
       }
 
       // Sign in with Supabase Auth
-      final response = await _supabase.auth.signInWithPassword(
+      final response = await supabase.auth.signInWithPassword(
         email: email,
         password: password,
       );
@@ -192,6 +220,11 @@ class AuthService {
   /// Sign out current user
   static Future<Map<String, dynamic>> signOut() async {
     try {
+      final supabase = _supabase;
+      if (supabase == null) {
+        return _configError('sign_out');
+      }
+
       if (kDebugMode) {
         print('Starting sign out process...');
       }
@@ -204,7 +237,7 @@ class AuthService {
       }
 
       // Sign out from Supabase
-      await _supabase.auth.signOut();
+      await supabase.auth.signOut();
 
       if (kDebugMode) {
         print('Supabase sign out completed');
@@ -257,6 +290,11 @@ class AuthService {
     required String email,
   }) async {
     try {
+      final supabase = _supabase;
+      if (supabase == null) {
+        return _configError('reset_password');
+      }
+
       if (email.isEmpty) {
         return {
           'success': false,
@@ -265,7 +303,7 @@ class AuthService {
         };
       }
 
-      await _supabase.auth.resetPasswordForEmail(email);
+      await supabase.auth.resetPasswordForEmail(email);
 
       return {
         'success': true,
@@ -299,6 +337,11 @@ class AuthService {
     required String newPassword,
   }) async {
     try {
+      final supabase = _supabase;
+      if (supabase == null) {
+        return _configError('update_password');
+      }
+
       if (!isAuthenticated) {
         return {
           'success': false,
@@ -315,7 +358,7 @@ class AuthService {
         };
       }
 
-      await _supabase.auth.updateUser(UserAttributes(password: newPassword));
+      await supabase.auth.updateUser(UserAttributes(password: newPassword));
 
       return {'success': true, 'message': 'Password updated successfully'};
     } on AuthException catch (e) {
@@ -344,6 +387,11 @@ class AuthService {
   /// Get current user profile
   static Future<Map<String, dynamic>?> getCurrentUserProfile() async {
     try {
+      final supabase = _supabase;
+      if (supabase == null) {
+        return null;
+      }
+
       if (!isAuthenticated) {
         return null;
       }
@@ -353,7 +401,7 @@ class AuthService {
         return null;
       }
 
-      final profile = await _supabase
+      final profile = await supabase
           .from('dormitory_students')
           .select('*')
           .eq('id', userId)
@@ -376,6 +424,11 @@ class AuthService {
     Map<String, dynamic>? additionalData,
   }) async {
     try {
+      final supabase = _supabase;
+      if (supabase == null) {
+        return _configError('update_profile');
+      }
+
       if (!isAuthenticated) {
         return {
           'success': false,
@@ -408,14 +461,14 @@ class AuthService {
         };
       }
 
-      await _supabase
+      await supabase
           .from('dormitory_students')
           .update(updateData)
           .eq('id', userId);
 
       // Also update auth metadata if name changed
       if (fullName != null) {
-        await _supabase.auth.updateUser(
+        await supabase.auth.updateUser(
           UserAttributes(data: {'full_name': fullName}),
         );
       }
@@ -437,6 +490,11 @@ class AuthService {
   /// Delete user account
   static Future<Map<String, dynamic>> deleteAccount() async {
     try {
+      final supabase = _supabase;
+      if (supabase == null) {
+        return _configError('delete_account');
+      }
+
       if (!isAuthenticated) {
         return {
           'success': false,
@@ -455,7 +513,7 @@ class AuthService {
       }
 
       // Delete user data from database (cascade will handle related tables)
-      await _supabase.from('dormitory_students').delete().eq('id', userId);
+      await supabase.from('dormitory_students').delete().eq('id', userId);
 
       // Sign out user
       await signOut();
@@ -475,8 +533,13 @@ class AuthService {
   }
 
   /// Get auth state changes stream
-  static Stream<AuthState> get authStateChanges =>
-      _supabase.auth.onAuthStateChange;
+  static Stream<AuthState> get authStateChanges {
+    final supabase = _supabase;
+    if (supabase == null) {
+      return const Stream<AuthState>.empty();
+    }
+    return supabase.auth.onAuthStateChange;
+  }
 
   /// Check if user email is confirmed
   static bool get isEmailConfirmed => currentUser?.emailConfirmedAt != null;
@@ -484,7 +547,12 @@ class AuthService {
   /// Try to establish session if user was previously authenticated
   static Future<Map<String, dynamic>> tryEstablishSession() async {
     try {
-      final session = _supabase.auth.currentSession;
+      final supabase = _supabase;
+      if (supabase == null) {
+        return _configError('establish_session');
+      }
+
+      final session = supabase.auth.currentSession;
       if (session != null && isAuthenticated) {
         // Update last login
         final userId = currentUserId;
@@ -523,6 +591,11 @@ class AuthService {
   /// Resend email verification
   static Future<Map<String, dynamic>> resendEmailVerification() async {
     try {
+      final supabase = _supabase;
+      if (supabase == null) {
+        return _configError('resend_email_verification');
+      }
+
       if (!isAuthenticated) {
         return {
           'success': false,
@@ -557,7 +630,7 @@ class AuthService {
         };
       }
 
-      await _supabase.auth.resend(type: OtpType.signup, email: email);
+      await supabase.auth.resend(type: OtpType.signup, email: email);
 
       return {
         'success': true,
@@ -581,6 +654,11 @@ class AuthService {
     String? fullName,
   }) async {
     try {
+      final supabase = _supabase;
+      if (supabase == null) {
+        return _configError('ensure_student_profile');
+      }
+
       if (!isAuthenticated) {
         return {
           'success': false,
@@ -600,7 +678,7 @@ class AuthService {
       final userId = user.id;
 
       // Check if profile exists
-      final existing = await _supabase
+      final existing = await supabase
           .from('dormitory_students')
           .select('*')
           .eq('id', userId)
@@ -610,7 +688,7 @@ class AuthService {
         // Create new profile
         final nameParts = (fullName ?? user.userMetadata?['full_name'] ?? '')
             .split(' ');
-        await _supabase.from('dormitory_students').insert({
+        await supabase.from('dormitory_students').insert({
           'id': userId,
           'auth_user_id': userId,
           'email': user.email,
@@ -627,7 +705,7 @@ class AuthService {
         }
       } else {
         // Update last access time
-        await _supabase
+        await supabase
             .from('dormitory_students')
             .update({'updated_at': DateTime.now().toIso8601String()})
             .eq('id', userId);
@@ -657,8 +735,13 @@ class AuthService {
     String fullName,
   ) async {
     try {
+      final supabase = _supabase;
+      if (supabase == null) {
+        return _configError('create_student_profile');
+      }
+
       // First check if profile already exists
-      final existing = await _supabase
+      final existing = await supabase
           .from('dormitory_students')
           .select('id')
           .eq('id', user.id)
@@ -673,7 +756,7 @@ class AuthService {
 
       // Create new profile
       final nameParts = fullName.split(' ');
-      await _supabase.from('dormitory_students').insert({
+      await supabase.from('dormitory_students').insert({
         'id': user.id,
         'auth_user_id': user.id,
         'email': user.email,
@@ -714,7 +797,12 @@ class AuthService {
   /// Update last login timestamp
   static Future<void> _updateLastLogin(String userId) async {
     try {
-      await _supabase
+      final supabase = _supabase;
+      if (supabase == null) {
+        return;
+      }
+
+      await supabase
           .from('dormitory_students')
           .update({'updated_at': DateTime.now().toIso8601String()})
           .eq('auth_user_id', userId);
@@ -729,7 +817,12 @@ class AuthService {
   /// Check if email is already registered
   static Future<bool> isEmailRegistered(String email) async {
     try {
-      final result = await _supabase
+      final supabase = _supabase;
+      if (supabase == null) {
+        return false;
+      }
+
+      final result = await supabase
           .from('dormitory_students')
           .select('id')
           .eq('email', email)
@@ -747,6 +840,11 @@ class AuthService {
   /// Get user statistics
   static Future<Map<String, dynamic>> getUserStatistics() async {
     try {
+      final supabase = _supabase;
+      if (supabase == null) {
+        return {'total_documents': 0, 'profile_completion': 0};
+      }
+
       if (!isAuthenticated) {
         return {'total_documents': 0, 'profile_completion': 0};
       }
@@ -759,7 +857,7 @@ class AuthService {
       final studentId = userId;
 
       // Get document count using the student ID
-      final documents = await _supabase
+      final documents = await supabase
           .from('student_documents')
           .select('id')
           .eq('student_id', studentId);
