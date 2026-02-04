@@ -1,16 +1,19 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ConfigService {
   // Supabase configuration - SECURITY: Never expose API keys in production
-  static const String supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: '',
-  );
+  static String get supabaseUrl {
+    const envUrl = String.fromEnvironment('SUPABASE_URL');
+    if (envUrl.isNotEmpty) return envUrl;
+    return dotenv.env['SUPABASE_URL'] ?? '';
+  }
 
-  static const String supabaseAnonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: '',
-  );
+  static String get supabasePublishableKey {
+    const envKey = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+    if (envKey.isNotEmpty) return envKey;
+    return dotenv.env['SUPABASE_PUBLISHABLE_KEY'] ?? '';
+  }
 
   // Development configuration from environment only
   static const String devSupabaseUrl = String.fromEnvironment(
@@ -26,9 +29,9 @@ class ConfigService {
   // Security validation
   static bool get isConfigValid {
     return supabaseUrl.isNotEmpty &&
-        supabaseAnonKey.isNotEmpty &&
+        supabasePublishableKey.isNotEmpty &&
         supabaseUrl.startsWith('https://') &&
-        supabaseAnonKey.length > 20;
+        supabasePublishableKey.length > 20;
   }
 
   static bool get isDevConfigValid {
@@ -47,13 +50,13 @@ class ConfigService {
     );
   }
 
-  static String get secureSupabaseAnonKey {
-    if (supabaseAnonKey.isNotEmpty) return supabaseAnonKey;
+  static String get secureSupabaseKey {
+    if (supabasePublishableKey.isNotEmpty) return supabasePublishableKey;
     if (!isProduction && kDebugMode && isDevConfigValid) {
       return devSupabaseAnonKey;
     }
     throw Exception(
-      'SECURITY ERROR: Supabase API key not configured. Set SUPABASE_ANON_KEY environment variable.',
+      'SECURITY ERROR: Supabase API key not configured. Set SUPABASE_PUBLISHABLE_KEY environment variable.',
     );
   }
 
@@ -112,7 +115,7 @@ class ConfigService {
       'debugMode': enableDebugMode,
       'configValid': isConfigValid,
       'urlConfigured': supabaseUrl.isNotEmpty,
-      'keyConfigured': supabaseAnonKey.isNotEmpty,
+      'keyConfigured': supabasePublishableKey.isNotEmpty,
     };
   }
 }

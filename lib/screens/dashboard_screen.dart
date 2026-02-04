@@ -585,7 +585,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 locale,
                 'dormitory_registration',
                 Icons.home_outlined,
-                onEdit: () => _editRegistration(context),
+                // User cannot edit after completion/import (Admin only)
+                onEdit: null,
               ),
             if (completion.documentsCompleted)
               _buildCompletedTaskItem(
@@ -593,7 +594,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 locale,
                 'upload_documents',
                 Icons.upload_file_outlined,
-                onEdit: () => _editDocuments(context),
+                // User cannot edit after completion/import (Admin only)
+                onEdit: null,
               ),
             if (!completion.registrationCompleted &&
                 !completion.documentsCompleted) ...[

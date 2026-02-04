@@ -107,7 +107,7 @@ class AuthService {
       return {
         'success': false,
         'error': 'unexpected_error',
-        'message': 'An unexpected error occurred. Please try again.',
+        'message': 'An unexpected error occurred: $e',
       };
     }
   }
@@ -184,7 +184,7 @@ class AuthService {
       return {
         'success': false,
         'error': 'unexpected_error',
-        'message': 'An unexpected error occurred. Please try again.',
+        'message': 'An unexpected error occurred: $e',
       };
     }
   }
@@ -612,6 +612,7 @@ class AuthService {
             .split(' ');
         await _supabase.from('dormitory_students').insert({
           'id': userId,
+          'auth_user_id': userId,
           'email': user.email,
           'name': nameParts.isNotEmpty ? nameParts.first : '',
           'family_name': nameParts.length > 1
@@ -674,6 +675,7 @@ class AuthService {
       final nameParts = fullName.split(' ');
       await _supabase.from('dormitory_students').insert({
         'id': user.id,
+        'auth_user_id': user.id,
         'email': user.email,
         'name': nameParts.isNotEmpty ? nameParts.first : '',
         'family_name': nameParts.length > 1 ? nameParts.skip(1).join(' ') : '',
@@ -704,7 +706,7 @@ class AuthService {
       return {
         'success': false,
         'error': 'profile_creation_error',
-        'message': 'Failed to create user profile. Please try again.',
+        'message': 'Failed to create user profile: $e',
       };
     }
   }

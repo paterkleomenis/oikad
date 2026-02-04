@@ -32,7 +32,7 @@ void main() async {
     ConfigService.validateSecurity();
     await Supabase.initialize(
       url: ConfigService.secureSupabaseUrl,
-      anonKey: ConfigService.secureSupabaseAnonKey,
+      anonKey: ConfigService.secureSupabaseKey,
     );
     debugPrint('Supabase initialized successfully');
   } catch (e) {

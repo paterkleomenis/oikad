@@ -291,6 +291,15 @@ class CompletionNotifier extends ChangeNotifier {
         tag: 'CompletionNotifier',
       );
 
+      // Rebuild completed items list based on new status
+      _completedItems.clear();
+      if (_registrationCompleted) {
+        _completedItems.add('Dormitory Registration');
+      }
+      if (_documentsCompleted) {
+        _completedItems.add('Document Upload');
+      }
+
       // Save the updated status
       await _saveCompletionState();
     } catch (e) {

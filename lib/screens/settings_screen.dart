@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../notifiers.dart';
 import '../services/localization_service.dart';
+import '../services/auth_service.dart';
 import '../utils/app_info.dart';
 
 import '../services/update_service.dart';
@@ -282,6 +283,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 16),
 
+            // Security Section
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.security,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          t(locale, 'security'),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.password),
+                      title: Text(t(locale, 'change_password')),
+                      subtitle: Text(t(locale, 'update_your_password')),
+                      trailing: Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                      onTap: () => _showChangePasswordDialog(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
             // Language Section
             Card(
               child: Padding(
@@ -453,5 +496,131 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (update != null) {
       await showUpdateDialog(context, update);
     }
+  }
+
+  void _showChangePasswordDialog() {
+    final locale = context.read<LocaleNotifier>().locale;
+    final passwordController = TextEditingController();
+    final confirmController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isLoading = false;
+    bool obscurePassword = true;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(t(locale, 'change_password')),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: passwordController,
+                      decoration: InputDecoration(
+                        labelText: t(locale, 'new_password'),
+                        prefixIcon: const Icon(Icons.lock),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscurePassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              obscurePassword = !obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                      obscureText: obscurePassword,
+                      validator: (value) {
+                        if (value == null || value.length < 6) {
+                          return t(locale, 'password_too_short');
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: confirmController,
+                      decoration: InputDecoration(
+                        labelText: t(locale, 'confirm_password'),
+                        prefixIcon: const Icon(Icons.lock_outline),
+                      ),
+                      obscureText: obscurePassword,
+                      validator: (value) {
+                        if (value != passwordController.text) {
+                          return t(locale, 'passwords_do_not_match');
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading ? null : () => Navigator.pop(context),
+                  child: Text(t(locale, 'cancel')),
+                ),
+                ElevatedButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          if (formKey.currentState!.validate()) {
+                            setState(() {
+                              isLoading = true;
+                            });
+
+                            try {
+                              final result = await AuthService.updatePassword(
+                                newPassword: passwordController.text,
+                              );
+
+                              if (context.mounted) {
+                                Navigator.pop(context); // Close dialog
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(result['message']),
+                                    backgroundColor: result['success']
+                                        ? Colors.green
+                                        : Colors.red,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                setState(() {
+                                  isLoading = false;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(t(locale, 'update')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 }

@@ -44,11 +44,15 @@ class LocalizationService {
       'error': 'Error',
       'warning': 'Warning',
       'info': 'Info',
+      'update': 'Update',
 
       // Theme and Settings
       'dark': 'Dark',
       'light': 'Light',
       'settings': 'Settings',
+      'security': 'Security',
+      'update_your_password': 'Update your password',
+      'new_password': 'New Password',
       'help': 'Help',
       'refresh': 'Refresh',
       'dismiss': 'Dismiss',
@@ -363,11 +367,15 @@ class LocalizationService {
       'error': 'Σφάλμα',
       'warning': 'Προειδοποίηση',
       'info': 'Πληροφορίες',
+      'update': 'Ενημέρωση',
 
       // Theme and Settings
       'dark': 'Σκοτεινό',
       'light': 'Φωτεινό',
       'settings': 'Ρυθμίσεις',
+      'security': 'Ασφάλεια',
+      'update_your_password': 'Ενημερώστε τον κωδικό σας',
+      'new_password': 'Νέος Κωδικός',
       'help': 'Βοήθεια',
       'refresh': 'Ανανέωση',
       'dismiss': 'Απόρριψη',
