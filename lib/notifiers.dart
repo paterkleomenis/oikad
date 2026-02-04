@@ -100,19 +100,25 @@ class ThemeNotifier extends ChangeNotifier {
 class CompletionNotifier extends ChangeNotifier {
   bool _registrationCompleted = false;
   bool _documentsCompleted = false;
+  bool _healthCompleted = false;
   final List<String> _completedItems = [];
   String? _lastUserId;
 
   bool get registrationCompleted => _registrationCompleted;
   bool get documentsCompleted => _documentsCompleted;
+  bool get healthCompleted => _healthCompleted;
   List<String> get completedItems => List.unmodifiable(_completedItems);
 
   // Convenience getters for pending tasks
   bool get hasRegistrationPending => !_registrationCompleted;
   bool get hasDocumentsPending => !_documentsCompleted;
-  bool get hasPendingTasks => hasRegistrationPending || hasDocumentsPending;
+  bool get hasHealthPending => !_healthCompleted;
+  bool get hasPendingTasks =>
+      hasRegistrationPending || hasDocumentsPending || hasHealthPending;
   int get pendingTasksCount =>
-      (hasRegistrationPending ? 1 : 0) + (hasDocumentsPending ? 1 : 0);
+      (hasRegistrationPending ? 1 : 0) +
+      (hasDocumentsPending ? 1 : 0) +
+      (hasHealthPending ? 1 : 0);
 
   List<String> get pendingTasks {
     final pending = <String>[];
@@ -121,6 +127,9 @@ class CompletionNotifier extends ChangeNotifier {
     }
     if (hasDocumentsPending) {
       pending.add('Document Upload');
+    }
+    if (hasHealthPending) {
+      pending.add('Health Documents');
     }
     return pending;
   }
@@ -163,11 +172,21 @@ class CompletionNotifier extends ChangeNotifier {
 
       // Verify completion status with database to ensure consistency
       _checkActualCompletionStatus();
-    } else {
+    }
+  }
+
+  void markHealthCompleted() {
+    if (!_healthCompleted) {
       DebugConfig.debugLog(
-        'Documents already marked as completed',
+        'Marking health documents as completed',
         tag: 'CompletionNotifier',
       );
+      _healthCompleted = true;
+      _addCompletedItem('Health Documents');
+      _saveCompletionState();
+      notifyListeners();
+
+      _checkActualCompletionStatus();
     }
   }
 
@@ -186,6 +205,7 @@ class CompletionNotifier extends ChangeNotifier {
       // User changed, reset completion state
       _registrationCompleted = false;
       _documentsCompleted = false;
+      _healthCompleted = false;
       _completedItems.clear();
     }
     _lastUserId = currentUserId;
@@ -194,12 +214,14 @@ class CompletionNotifier extends ChangeNotifier {
     await _checkActualCompletionStatus();
 
     // If database check fails, fall back to stored preferences tied to current user
-    if (!_registrationCompleted && !_documentsCompleted) {
+    if (!_registrationCompleted && !_documentsCompleted && !_healthCompleted) {
       if (currentUserId != null) {
         _registrationCompleted =
             prefs.getBool('registration_completed_$currentUserId') ?? false;
         _documentsCompleted =
             prefs.getBool('documents_completed_$currentUserId') ?? false;
+        _healthCompleted =
+            prefs.getBool('health_completed_$currentUserId') ?? false;
       }
     }
 
@@ -210,6 +232,9 @@ class CompletionNotifier extends ChangeNotifier {
     }
     if (_documentsCompleted) {
       _completedItems.add('Document Upload');
+    }
+    if (_healthCompleted) {
+      _completedItems.add('Health Documents');
     }
 
     notifyListeners();
@@ -227,6 +252,7 @@ class CompletionNotifier extends ChangeNotifier {
         'documents_completed_$currentUserId',
         _documentsCompleted,
       );
+      await prefs.setBool('health_completed_$currentUserId', _healthCompleted);
       await prefs.setStringList(
         'completed_items_$currentUserId',
         _completedItems,
@@ -237,6 +263,7 @@ class CompletionNotifier extends ChangeNotifier {
   void resetCompletion() {
     _registrationCompleted = false;
     _documentsCompleted = false;
+    _healthCompleted = false;
     _completedItems.clear();
     _lastUserId = AuthService.currentUserId;
     _saveCompletionState();
@@ -250,6 +277,7 @@ class CompletionNotifier extends ChangeNotifier {
     if (currentUserId != null) {
       await prefs.remove('registration_completed_$currentUserId');
       await prefs.remove('documents_completed_$currentUserId');
+      await prefs.remove('health_completed_$currentUserId');
       await prefs.remove('completed_items_$currentUserId');
     }
     resetCompletion();
@@ -262,7 +290,7 @@ class CompletionNotifier extends ChangeNotifier {
       final currentUserId = AuthService.currentUserId;
       if (currentUserId == null) return;
 
-      // Check registration completion by verifying if submitted registration exists
+      // Check registration completion
       final registrationResult = await Supabase.instance.client
           .from('dormitory_students')
           .select('application_status')
@@ -276,7 +304,7 @@ class CompletionNotifier extends ChangeNotifier {
         _registrationCompleted = false;
       }
 
-      // Check documents completion by verifying if documents exist for the student
+      // Check documents completion
       final studentId = currentUserId;
       final documentsResult = await Supabase.instance.client
           .from('student_documents')
@@ -285,11 +313,48 @@ class CompletionNotifier extends ChangeNotifier {
           .limit(1);
 
       _documentsCompleted = documentsResult.isNotEmpty;
+      if (_documentsCompleted) {
+        try {
+          final documentObjects = await Supabase.instance.client.storage
+              .from('student-documents')
+              .list(path: 'documents/$studentId');
+          if (documentObjects.isEmpty) {
+            _documentsCompleted = false;
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('Error checking document storage: $e');
+          }
+        }
+      }
 
-      DebugConfig.debugLog(
-        'Document completion check: completed=$_documentsCompleted',
-        tag: 'CompletionNotifier',
-      );
+      // Check health documents completion
+      try {
+        final healthResult = await Supabase.instance.client
+            .from('student_health_documents')
+            .select('id')
+            .eq('student_id', studentId)
+            .limit(1);
+
+        _healthCompleted = healthResult.isNotEmpty;
+        if (_healthCompleted) {
+          try {
+            final healthObjects = await Supabase.instance.client.storage
+                .from('health-documents')
+                .list(path: studentId);
+            if (healthObjects.isEmpty) {
+              _healthCompleted = false;
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              debugPrint('Error checking health storage: $e');
+            }
+          }
+        }
+      } catch (e) {
+        // Table might not exist yet if running against old DB
+        _healthCompleted = false;
+      }
 
       // Rebuild completed items list based on new status
       _completedItems.clear();
@@ -299,11 +364,13 @@ class CompletionNotifier extends ChangeNotifier {
       if (_documentsCompleted) {
         _completedItems.add('Document Upload');
       }
+      if (_healthCompleted) {
+        _completedItems.add('Health Documents');
+      }
 
       // Save the updated status
       await _saveCompletionState();
     } catch (e) {
-      // If database check fails, keep existing state
       if (kDebugMode) {
         debugPrint('Error checking completion status from database: $e');
       }
@@ -319,6 +386,7 @@ class CompletionNotifier extends ChangeNotifier {
       // User changed, reset completion state
       _registrationCompleted = false;
       _documentsCompleted = false;
+      _healthCompleted = false;
       _completedItems.clear();
     }
     _lastUserId = currentUserId;

@@ -12,6 +12,7 @@ import '../widgets/update_dialog.dart';
 import 'welcome_screen.dart';
 import 'registration_screen.dart';
 import 'documents_screen.dart';
+import 'health_documents_screen.dart';
 import 'receipts_screen.dart';
 import 'settings_screen.dart';
 
@@ -372,8 +373,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 24),
 
               // Pending Tasks Section
-              if (!completion.registrationCompleted ||
-                  !completion.documentsCompleted) ...[
+              if (completion.hasPendingTasks) ...[
                 Text(
                   t(locale, 'pending_tasks'),
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -434,7 +434,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               );
                             },
                           ),
-                          if (!completion.documentsCompleted) const Divider(),
+                          const Divider(),
                         ],
                         if (!completion.documentsCompleted) ...[
                           ListTile(
@@ -474,6 +474,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => const DocumentsScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          if (!completion.healthCompleted) const Divider(),
+                        ],
+                        if (!completion.healthCompleted) ...[
+                          ListTile(
+                            leading: Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.medical_services_outlined,
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? const Color(0xFF64B5F6)
+                                    : Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            title: Text(t(locale, 'upload_health_documents')),
+                            subtitle: Text(
+                              t(locale, 'upload_health_documents_subtitle'),
+                            ),
+                            trailing: Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? const Color(0xFF64B5F6)
+                                  : Theme.of(context).colorScheme.primary,
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const HealthDocumentsScreen(),
                                 ),
                               );
                             },
@@ -597,8 +642,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 // User cannot edit after completion/import (Admin only)
                 onEdit: null,
               ),
+            if (completion.healthCompleted)
+              _buildCompletedTaskItem(
+                context,
+                locale,
+                'upload_health_documents',
+                Icons.medical_services_outlined,
+                onEdit: null,
+              ),
             if (!completion.registrationCompleted &&
-                !completion.documentsCompleted) ...[
+                !completion.documentsCompleted &&
+                !completion.healthCompleted) ...[
               Center(
                 child: Column(
                   children: [

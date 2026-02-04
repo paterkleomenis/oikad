@@ -47,24 +47,21 @@ class DocumentService {
         throw Exception('Could not read file data');
       }
 
-      if (enableCompression && ImageProcessingService.isImageFile(file)) {
-        // Compress image only - NO THUMBNAIL GENERATION
-        final compressionResult = await ImageProcessingService.compressImage(
-          file: file,
-          quality: 85,
-          maxWidth: 1920,
-          maxHeight: 1920,
-        );
+      if (enableCompression) {
+        // Compress/optimize images (PDFs currently return original bytes)
+        final compressionResult =
+            await ImageProcessingService.optimizeForUpload(file);
 
         if (compressionResult['success']) {
           finalBytes = compressionResult['compressed_bytes'];
           finalSize = compressionResult['compressed_size'];
-          compressionRatio = double.parse(
-            compressionResult['compression_ratio'],
-          );
+          final ratioValue = compressionResult['compression_ratio'];
+          if (ratioValue != null) {
+            compressionRatio = double.parse(ratioValue.toString());
+          }
 
           if (kDebugMode) {
-            print('Image compressed: $compressionRatio% reduction');
+            print('File optimized: $compressionRatio% reduction');
           }
         } else {
           // Use original if compression fails
@@ -90,10 +87,10 @@ class DocumentService {
             fileOptions: const FileOptions(upsert: true),
           );
 
-      // Get the public URL
-      final publicUrl = _supabase.storage
+      // Get a signed URL (bucket should be private)
+      final signedUrl = await _supabase.storage
           .from(_bucketName)
-          .getPublicUrl(filePath);
+          .createSignedUrl(filePath, 3600);
 
       // Get category info
       // Look up category ID
@@ -136,7 +133,7 @@ class DocumentService {
       return {
         'success': true,
         'document_id': null,
-        'public_url': publicUrl,
+        'signed_url': signedUrl,
         'file_path': filePath,
         'compression_ratio': compressionRatio,
       };
@@ -422,9 +419,9 @@ class DocumentService {
           .single();
 
       if (document['file_path'] != null) {
-        final fileUrl = _supabase.storage
+        final fileUrl = await _supabase.storage
             .from(_bucketName)
-            .getPublicUrl(document['file_path']);
+            .createSignedUrl(document['file_path'], 3600);
 
         return await generateThumbnailFromUrl(fileUrl);
       }
@@ -440,9 +437,9 @@ class DocumentService {
   /// Get thumbnail for a document by file path
   static Future<Uint8List?> getThumbnailByPath(String filePath) async {
     try {
-      final fileUrl = _supabase.storage
+      final fileUrl = await _supabase.storage
           .from(_bucketName)
-          .getPublicUrl(filePath);
+          .createSignedUrl(filePath, 3600);
 
       return await generateThumbnailFromUrl(fileUrl);
     } catch (e) {

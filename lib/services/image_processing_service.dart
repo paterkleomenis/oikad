@@ -7,7 +7,7 @@ class ImageProcessingService {
   /// Compress an image file to reduce size
   static Future<Map<String, dynamic>> compressImage({
     required PlatformFile file,
-    int quality = 85,
+    int quality = 75,
     int maxWidth = 1920,
     int maxHeight = 1920,
   }) async {
@@ -46,7 +46,9 @@ class ImageProcessingService {
       );
 
       final compressedSize = compressedBytes.length;
-      final compressionRatio = ((originalSize - compressedSize) / originalSize * 100).toStringAsFixed(1);
+      final compressionRatio =
+          ((originalSize - compressedSize) / originalSize * 100)
+              .toStringAsFixed(1);
 
       if (kDebugMode) {
         print('Compressed size: $compressedSize bytes');
@@ -228,7 +230,8 @@ class ImageProcessingService {
         'compressed_size': file.size,
         'compression_ratio': '0.0',
         'file_name': file.name,
-        'message': 'PDF compression not implemented yet - returning original file',
+        'message':
+            'PDF compression not implemented yet - returning original file',
       };
     } catch (e) {
       if (kDebugMode) {
@@ -243,13 +246,15 @@ class ImageProcessingService {
   }
 
   /// Get optimized file size for upload
-  static Future<Map<String, dynamic>> optimizeForUpload(PlatformFile file) async {
+  static Future<Map<String, dynamic>> optimizeForUpload(
+    PlatformFile file,
+  ) async {
     try {
       if (isImageFile(file)) {
         // Compress images
         return await compressImage(
           file: file,
-          quality: 85,
+          quality: 75,
           maxWidth: 1920,
           maxHeight: 1920,
         );
@@ -283,7 +288,15 @@ class ImageProcessingService {
   /// Validate file for upload
   static Map<String, dynamic> validateFileForUpload(PlatformFile file) {
     const maxSizeInBytes = 50 * 1024 * 1024; // 50MB
-    const allowedExtensions = ['jpg', 'jpeg', 'png', 'pdf', 'gif', 'bmp', 'webp'];
+    const allowedExtensions = [
+      'jpg',
+      'jpeg',
+      'png',
+      'pdf',
+      'gif',
+      'bmp',
+      'webp',
+    ];
 
     final extension = file.extension?.toLowerCase();
 
@@ -291,7 +304,8 @@ class ImageProcessingService {
       return {
         'valid': false,
         'error': 'Invalid file type',
-        'message': 'Only image files (JPG, PNG, GIF, BMP, WebP) and PDF files are allowed',
+        'message':
+            'Only image files (JPG, PNG, GIF, BMP, WebP) and PDF files are allowed',
       };
     }
 
@@ -303,9 +317,6 @@ class ImageProcessingService {
       };
     }
 
-    return {
-      'valid': true,
-      'message': 'File is valid for upload',
-    };
+    return {'valid': true, 'message': 'File is valid for upload'};
   }
 }

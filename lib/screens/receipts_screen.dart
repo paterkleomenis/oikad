@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/receipts_service.dart';
@@ -15,6 +16,10 @@ class ReceiptsScreen extends StatefulWidget {
 }
 
 class _ReceiptsScreenState extends State<ReceiptsScreen> {
+  static const MethodChannel _receiptSaverChannel = MethodChannel(
+    'com.paterkleomenis.oikad/receipt_saver',
+  );
+
   List<Map<String, dynamic>> _receipts = [];
   List<int> _availableYears = [];
   List<int> _availableMonths = [];
@@ -149,10 +154,6 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(t(locale, 'cancel')),
-            ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop('downloads'),
               child: Text(t(locale, 'downloads_folder')),
@@ -162,8 +163,8 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
               child: Text(t(locale, 'choose_location')),
             ),
             TextButton(
-              onPressed: () => Navigator.of(context).pop('documents'),
-              child: Text(t(locale, 'app_documents')),
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(t(locale, 'cancel')),
             ),
           ],
         );
@@ -205,64 +206,73 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
           : '${fileName}_$timestamp';
 
       if (option == 'downloads') {
-        // Try to save to Downloads directory
-        try {
-          Directory? downloadsDir;
-          if (Platform.isAndroid) {
-            downloadsDir = Directory('/storage/emulated/0/Download');
-            if (!await downloadsDir.exists()) {
-              downloadsDir = await getDownloadsDirectory();
+        if (Platform.isAndroid) {
+          final savedPath = await _receiptSaverChannel.invokeMethod<String>(
+            'saveToDownloads',
+            {'fileName': timestampedFileName, 'bytes': bytes},
+          );
+
+          if (savedPath == null) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(t(locale, 'download_error'))),
+              );
             }
-          } else {
-            downloadsDir = await getDownloadsDirectory();
+            return;
           }
 
-          if (downloadsDir != null && await downloadsDir.exists()) {
-            final file = File('${downloadsDir.path}/$timestampedFileName');
-            await file.writeAsBytes(bytes);
-            savePath = file.path;
-          } else {
-            throw Exception('Downloads folder not accessible');
+          savePath = savedPath;
+        } else {
+          // Try to save to Downloads directory
+          try {
+            final downloadsDir = await getDownloadsDirectory();
+            if (downloadsDir != null && await downloadsDir.exists()) {
+              final file = File('${downloadsDir.path}/$timestampedFileName');
+              await file.writeAsBytes(bytes);
+              savePath = file.path;
+            } else {
+              throw Exception('Downloads folder not accessible');
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('${t(locale, 'downloads_folder_error')}: $e'),
+                  duration: const Duration(seconds: 4),
+                ),
+              );
+            }
+            return;
           }
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('${t(locale, 'downloads_folder_error')}: $e'),
-                duration: const Duration(seconds: 4),
-              ),
-            );
-          }
-          return;
-        }
-      } else if (option == 'documents') {
-        // Save to app documents directory
-        try {
-          final documentsDir = await getApplicationDocumentsDirectory();
-          final file = File('${documentsDir.path}/$timestampedFileName');
-          await file.writeAsBytes(bytes);
-          savePath = file.path;
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('${t(locale, 'documents_folder_error')}: $e'),
-                duration: const Duration(seconds: 4),
-              ),
-            );
-          }
-          return;
         }
       } else if (option == 'choose') {
         // Let user choose location
-        final result = await FilePicker.platform.getDirectoryPath(
-          dialogTitle: t(locale, 'choose_save_location'),
-        );
+        String? targetPathOrSavedPath;
+        if (Platform.isAndroid) {
+          targetPathOrSavedPath = await FilePicker.platform.saveFile(
+            dialogTitle: t(locale, 'choose_save_location'),
+            fileName: timestampedFileName,
+            bytes: bytes,
+          );
+        } else {
+          final dir = await FilePicker.platform.getDirectoryPath(
+            dialogTitle: t(locale, 'choose_save_location'),
+          );
+          if (dir != null) {
+            targetPathOrSavedPath = '$dir/$timestampedFileName';
+          }
+        }
 
-        if (result != null) {
-          final file = File('$result/$timestampedFileName');
-          await file.writeAsBytes(bytes);
-          savePath = file.path;
+        if (targetPathOrSavedPath != null) {
+          if (Platform.isAndroid) {
+            savePath = targetPathOrSavedPath.isEmpty
+                ? timestampedFileName
+                : targetPathOrSavedPath;
+          } else {
+            final file = File(targetPathOrSavedPath);
+            await file.writeAsBytes(bytes);
+            savePath = file.path;
+          }
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -275,12 +285,19 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
 
       // Show success message
       if (mounted && savePath != null) {
+        final displayPath = savePath.startsWith('content://')
+            ? timestampedFileName
+            : savePath;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${t(locale, 'file_saved_to')}: $savePath'),
+            content: Text('${t(locale, 'file_saved_to')}: $displayPath'),
             duration: const Duration(seconds: 3),
           ),
         );
+      } else if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t(locale, 'download_error'))));
       }
     } catch (e) {
       if (mounted) {
@@ -306,6 +323,7 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<int>(
+                    isExpanded: true,
                     decoration: InputDecoration(
                       labelText: t(locale, 'year'),
                       border: const OutlineInputBorder(),
@@ -315,12 +333,18 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
                     items: [
                       DropdownMenuItem<int>(
                         value: null,
-                        child: Text(t(locale, 'all_years')),
+                        child: Text(
+                          t(locale, 'all_years'),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       ..._availableYears.map(
                         (year) => DropdownMenuItem(
                           value: year,
-                          child: Text(year.toString()),
+                          child: Text(
+                            year.toString(),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
                     ],
@@ -343,6 +367,7 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: DropdownButtonFormField<int>(
+                    isExpanded: true,
                     decoration: InputDecoration(
                       labelText: t(locale, 'month'),
                       border: const OutlineInputBorder(),
@@ -352,13 +377,17 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
                     items: [
                       DropdownMenuItem<int>(
                         value: null,
-                        child: Text(t(locale, 'all_months')),
+                        child: Text(
+                          t(locale, 'all_months'),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       ..._availableMonths.map(
                         (month) => DropdownMenuItem(
                           value: month,
                           child: Text(
                             ReceiptsService.getMonthName(month, locale),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),

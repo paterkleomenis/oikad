@@ -1,0 +1,32 @@
+name: Supabase Keepalive
+
+on:
+  schedule:
+    - cron: "0 6 * * 3"
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          KEEPALIVE_TABLE: ${{ secrets.KEEPALIVE_TABLE }}
+        run: |
+          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ] || [ -z "${KEEPALIVE_TABLE}" ]; then
+            echo "Missing required secrets: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, KEEPALIVE_TABLE"
+            exit 1
+          fi
+          BASE_URL="${SUPABASE_URL%/}"
+          STATUS=$(curl -sS -o /dev/null -w "%{http_code}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            "${BASE_URL}/rest/v1/${KEEPALIVE_TABLE}?select=*&limit=1")
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
+            echo "Keepalive OK (${STATUS})"
+            exit 0
+          fi
+          echo "Keepalive failed (${STATUS})"
+          exit 1
