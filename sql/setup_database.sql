@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS dormitory_students (
     -- Academic Information
     university VARCHAR(255),
     department VARCHAR(255),
+    school_registration_number VARCHAR(50),
     year_of_study VARCHAR(10),
     has_other_degree BOOLEAN DEFAULT false,
 

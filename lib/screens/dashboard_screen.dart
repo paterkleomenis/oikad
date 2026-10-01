@@ -102,7 +102,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ?.toString()
           .trim();
       if (fullName != null && fullName.isNotEmpty) {
-        return fullName;
+        // Requirement: full name must always be displayed in capitals
+        return fullName.toUpperCase();
       }
 
       // Try to get user email as fallback
@@ -119,7 +120,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ? word[0].toUpperCase() + word.substring(1)
                   : '',
             )
-            .join(' ');
+            .join(' ')
+            .toUpperCase();
       }
     }
 
@@ -630,8 +632,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 locale,
                 'dormitory_registration',
                 Icons.home_outlined,
-                // User cannot edit after completion/import (Admin only)
-                onEdit: null,
+                // User can view submitted registration but cannot edit it
+                onView: () {
+                  Navigator.pop(context);
+                  _viewRegistration(context);
+                },
               ),
             if (completion.documentsCompleted)
               _buildCompletedTaskItem(
@@ -640,7 +645,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 'upload_documents',
                 Icons.upload_file_outlined,
                 // User cannot edit after completion/import (Admin only)
-                onEdit: null,
+                onView: null,
               ),
             if (completion.healthCompleted)
               _buildCompletedTaskItem(
@@ -648,7 +653,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 locale,
                 'upload_health_documents',
                 Icons.medical_services_outlined,
-                onEdit: null,
+                onView: null,
               ),
             if (!completion.registrationCompleted &&
                 !completion.documentsCompleted &&
@@ -709,6 +714,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String titleKey,
     IconData icon, {
     VoidCallback? onEdit,
+    VoidCallback? onView,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -751,6 +757,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
           ),
+          if (onView != null) ...[
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: onView,
+              icon: const Icon(Icons.visibility),
+              iconSize: 20,
+              tooltip: t(locale, 'view'),
+              style: IconButton.styleFrom(
+                backgroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF64B5F6).withValues(alpha: 0.1)
+                    : Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                foregroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF64B5F6)
+                    : Theme.of(context).primaryColor,
+                minimumSize: const Size(36, 36),
+              ),
+            ),
+          ],
           if (onEdit != null) ...[
             const SizedBox(width: 8),
             IconButton(
@@ -770,6 +794,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  void _viewRegistration(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            const RegistrationScreen(isEditMode: true, isViewOnly: true),
       ),
     );
   }

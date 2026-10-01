@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../notifiers.dart';
@@ -12,10 +13,25 @@ import 'dashboard_screen.dart';
 
 String t(String lang, String key) => LocalizationService.t(lang, key);
 
+/// Forces input to UPPERCASE (names must be in capitals).
+class _UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
+    );
+  }
+}
+
 class RegistrationScreen extends StatefulWidget {
   final bool isEditMode;
+  final bool isViewOnly;
 
-  const RegistrationScreen({super.key, this.isEditMode = false});
+  const RegistrationScreen({super.key, this.isEditMode = false, this.isViewOnly = false});
 
   @override
   State<RegistrationScreen> createState() => _RegistrationScreenState();
@@ -34,11 +50,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   String? _issuingAuthority;
   String? _university;
   String? _department;
+  String? _schoolRegistrationNumber;
   int? _yearOfStudy;
   String? _email;
   String? _phone;
   String? _taxNumber;
   bool? _hasOtherDegree;
+  String? _applicationStatus;
+  bool _viewOnlyFromStatus = false;
+
+  bool get _isViewOnly => widget.isViewOnly || _viewOnlyFromStatus;
   String? _fatherJob;
   String? _motherJob;
   String? _parentAddress;
@@ -55,7 +76,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.isEditMode) {
+    if (widget.isEditMode || widget.isViewOnly) {
       _loadExistingData();
     }
   }
@@ -103,11 +124,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           _issuingAuthority = existing['issuing_authority'];
           _university = existing['university'];
           _department = existing['department'];
+          _schoolRegistrationNumber =
+              existing['school_registration_number']?.toString();
           _yearOfStudy = existing['year_of_study'];
           _email = existing['email'];
           _phone = existing['phone'];
           _taxNumber = existing['tax_number'];
           _hasOtherDegree = existing['has_other_degree'];
+          _applicationStatus = existing['application_status']?.toString();
+          _viewOnlyFromStatus =
+              _applicationStatus != null && _applicationStatus != 'draft';
           _fatherJob = existing['father_job'];
           _motherJob = existing['mother_job'];
           _parentAddress = existing['parent_address'];
@@ -137,6 +163,18 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   Future<void> _registerStudent() async {
     if (!mounted) return;
+
+    // View-only: submitted applications cannot be edited by the student.
+    if (_isViewOnly) {
+      final locale = context.read<LocaleNotifier>().locale;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(t(locale, 'view_only_message')),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
 
     if (!AuthService.isAuthenticated) {
       final locale = context.read<LocaleNotifier>().locale;
@@ -237,7 +275,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         _birthDate != null &&
         _birthPlace?.trim().isNotEmpty == true &&
         _phone?.trim().isNotEmpty == true &&
-        _email?.trim().isNotEmpty == true;
+        _email?.trim().isNotEmpty == true &&
+        _schoolRegistrationNumber?.trim().isNotEmpty == true;
   }
 
   Map<String, dynamic> _sanitizeFormData() {
@@ -254,6 +293,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       ),
       'university': SanitizationService.sanitizeInstitution(_university),
       'department': SanitizationService.sanitizeInstitution(_department),
+      'school_registration_number': SanitizationService.sanitizeAlphanumeric(
+        _schoolRegistrationNumber,
+      ),
       'year_of_study': _yearOfStudy,
       'has_other_degree': _hasOtherDegree ?? false,
       'email': SanitizationService.sanitizeEmail(_email),
@@ -304,6 +346,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     if (data['email'] == null || data['email'].toString().isEmpty) {
       errors.add('Email is required');
     }
+    if (data['school_registration_number'] == null ||
+        data['school_registration_number'].toString().isEmpty) {
+      errors.add(t(locale, 'school_registration_number_required'));
+    }
 
     if (data['email'] != null) {
       final emailError = ValidationService.validateEmail(data['email'], locale);
@@ -341,7 +387,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           onPressed: () => Navigator.of(context).pop(),
           tooltip: t(locale, 'back'),
         ),
-        title: Text(t(locale, 'dormitory_registration')),
+        title: Text(
+          _isViewOnly
+              ? '${t(locale, 'dormitory_registration')} — ${t(locale, 'view_only_title')}'
+              : t(locale, 'dormitory_registration'),
+        ),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -354,6 +404,36 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (_isViewOnly) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.visibility,
+                              color: Colors.blue.shade700,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                t(locale, 'view_only_message'),
+                                style: TextStyle(
+                                  color: Colors.blue.shade900,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     Text(
                       t(locale, 'details'),
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -370,6 +450,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       (v) => _name = v,
                       initialValue: _name,
                       required: true,
+                      forceUpperCase: true,
                     ),
                     _buildTextField(
                       locale,
@@ -377,18 +458,21 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       (v) => _familyName = v,
                       initialValue: _familyName,
                       required: true,
+                      forceUpperCase: true,
                     ),
                     _buildTextField(
                       locale,
                       'father_name',
                       (v) => _fatherName = v,
                       initialValue: _fatherName,
+                      forceUpperCase: true,
                     ),
                     _buildTextField(
                       locale,
                       'mother_name',
                       (v) => _motherName = v,
                       initialValue: _motherName,
+                      forceUpperCase: true,
                     ),
                     _buildBirthDatePicker(locale),
                     _buildTextField(
@@ -403,6 +487,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       'id_card_number',
                       (v) => _idCardNumber = v,
                       initialValue: _idCardNumber,
+                      forceUpperCase: true,
                     ),
                     _buildTextField(
                       locale,
@@ -421,6 +506,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       'department',
                       (v) => _department = v,
                       initialValue: _department,
+                    ),
+                    _buildTextField(
+                      locale,
+                      'school_registration_number',
+                      (v) => _schoolRegistrationNumber = v,
+                      initialValue: _schoolRegistrationNumber,
+                      required: true,
+                      forceUpperCase: true,
                     ),
                     _buildTextField(
                       locale,
@@ -533,48 +626,49 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     ),
 
                     const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () {
-                                if (_formKey.currentState!.validate()) {
-                                  _formKey.currentState!.save();
-                                  _registerStudent();
-                                }
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              Theme.of(context).brightness == Brightness.dark
-                              ? const Color(0xFF64B5F6)
-                              : Theme.of(context).primaryColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    if (!_isViewOnly)
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: _isLoading
+                              ? null
+                              : () {
+                                  if (_formKey.currentState!.validate()) {
+                                    _formKey.currentState!.save();
+                                    _registerStudent();
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFF64B5F6)
+                                : Theme.of(context).primaryColor,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                        ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : Text(
+                                  t(locale, 'submit'),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                              )
-                            : Text(
-                                t(locale, 'submit'),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -592,6 +686,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     String? initialValue,
     TextInputType keyboardType = TextInputType.text,
     bool required = false,
+    bool forceUpperCase = false,
   }) {
     // Get localized field labels
     String getFieldLabel(String key) {
@@ -603,6 +698,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: TextFormField(
         initialValue: initialValue,
+        enabled: !_isViewOnly,
+        readOnly: _isViewOnly,
+        textCapitalization: forceUpperCase
+            ? TextCapitalization.characters
+            : TextCapitalization.none,
+        inputFormatters: forceUpperCase ? [_UpperCaseTextFormatter()] : null,
         decoration: InputDecoration(
           labelText: required
               ? '${getFieldLabel(key)} (${t(locale, 'required')})'
@@ -613,6 +714,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 ? Colors.white70
                 : null,
           ),
+          disabledBorder: const OutlineInputBorder(),
         ),
         keyboardType: keyboardType,
         validator: (v) {
@@ -639,6 +741,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 ? Colors.white70
                 : null,
           ),
+          disabledBorder: const OutlineInputBorder(),
         ),
         initialValue: _hasOtherDegree,
         items: [
@@ -665,7 +768,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             ),
           ),
         ],
-        onChanged: (v) => setState(() => _hasOtherDegree = v),
+        onChanged: _isViewOnly ? null : (v) => setState(() => _hasOtherDegree = v),
         onSaved: onSaved,
       ),
     );
@@ -675,21 +778,24 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: GestureDetector(
-        onTap: () async {
-          final picked = await showDatePicker(
-            context: context,
-            initialDate: _birthDate ?? DateTime(2000, 1, 1),
-            firstDate: DateTime(1900),
-            lastDate: DateTime.now(),
-          );
-          if (picked != null) {
-            setState(() {
-              _birthDate = picked;
-            });
-          }
-        },
+        onTap: _isViewOnly
+            ? null
+            : () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _birthDate ?? DateTime(2000, 1, 1),
+                  firstDate: DateTime(1900),
+                  lastDate: DateTime.now(),
+                );
+                if (picked != null) {
+                  setState(() {
+                    _birthDate = picked;
+                  });
+                }
+              },
         child: AbsorbPointer(
           child: TextFormField(
+            enabled: !_isViewOnly,
             decoration: InputDecoration(
               labelText:
                   '${t(locale, 'birth_date')} (${t(locale, 'required')})',
@@ -700,6 +806,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     ? Colors.white70
                     : null,
               ),
+              disabledBorder: const OutlineInputBorder(),
             ),
             controller: TextEditingController(
               text: _birthDate == null

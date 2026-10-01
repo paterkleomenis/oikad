@@ -442,7 +442,7 @@ class AuthService {
       };
 
       if (fullName != null) {
-        final nameParts = fullName.split(' ');
+        final nameParts = fullName.toUpperCase().split(' ');
         updateData['name'] = nameParts.isNotEmpty ? nameParts.first : '';
         updateData['family_name'] = nameParts.length > 1
             ? nameParts.skip(1).join(' ')
@@ -687,6 +687,8 @@ class AuthService {
       if (existing == null) {
         // Create new profile
         final nameParts = (fullName ?? user.userMetadata?['full_name'] ?? '')
+            .toString()
+            .toUpperCase()
             .split(' ');
         await supabase.from('dormitory_students').insert({
           'id': userId,
@@ -755,7 +757,7 @@ class AuthService {
       }
 
       // Create new profile
-      final nameParts = fullName.split(' ');
+      final nameParts = fullName.toUpperCase().split(' ');
       await supabase.from('dormitory_students').insert({
         'id': user.id,
         'auth_user_id': user.id,

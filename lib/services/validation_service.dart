@@ -183,7 +183,7 @@ class ValidationService {
       },
     };
 
-    return messages[locale]?[key] ?? messages['en']![key]!;
+    return messages[locale]?[key] ?? messages['el']![key]!;
   }
 
   // Utility method to combine multiple validators

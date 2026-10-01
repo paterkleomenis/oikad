@@ -17,6 +17,7 @@ class SanitizationService {
   }
 
   /// Sanitizes name fields (allows letters, spaces, apostrophes, hyphens)
+  /// Always returns UPPERCASE as required (all names must be in capitals).
   static String? sanitizeName(String? input) {
     if (input == null) return null;
 
@@ -34,7 +35,10 @@ class SanitizationService {
     // Remove multiple consecutive apostrophes or hyphens
     sanitized = sanitized.replaceAll(RegExp(r'[\x27\-]{2,}'), '');
 
-    return sanitized.isEmpty ? null : sanitized;
+    if (sanitized.isEmpty) return null;
+
+    // Requirement: full name must always be in capitals
+    return sanitized.toUpperCase();
   }
 
   /// Sanitizes email addresses

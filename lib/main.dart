@@ -67,7 +67,7 @@ class MyApp extends StatelessWidget {
           darkTheme: _buildDarkTheme(),
           themeMode: themeNotifier.themeMode,
           locale: Locale(localeNotifier.locale),
-          supportedLocales: const [Locale('en'), Locale('el')],
+          supportedLocales: const [Locale('el'), Locale('en')],
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,

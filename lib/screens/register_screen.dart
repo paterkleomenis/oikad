@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../notifiers.dart';
 import '../services/localization_service.dart';
@@ -7,6 +8,20 @@ import '../services/auth_service.dart';
 import '../widgets/widgets.dart';
 import 'login_screen.dart';
 import 'dashboard_screen.dart';
+
+/// Forces all input to UPPERCASE (required for names).
+class _UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
+    );
+  }
+}
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -20,7 +35,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _fullNameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
 
   bool _isLoading = false;
   bool _passwordVisible = false;
@@ -34,7 +50,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _fullNameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
 
     super.dispose();
   }
@@ -60,10 +77,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
+      final fullName =
+          '${_firstNameController.text.trim().toUpperCase()} ${_lastNameController.text.trim().toUpperCase()}'
+              .trim();
       final result = await AuthService.register(
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        fullName: _fullNameController.text.trim(),
+        fullName: fullName,
       );
 
       if (mounted) {
@@ -261,10 +281,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return null;
   }
 
-  String? _validateFullName(String? value) {
+  String? _validateFirstName(String? value) {
     final locale = context.read<LocaleNotifier>().locale;
 
-    if (value == null || value.isEmpty) {
+    if (value == null || value.trim().isEmpty) {
+      return t(locale, 'full_name_required');
+    }
+
+    if (value.trim().length < 2) {
+      return t(locale, 'full_name_too_short');
+    }
+
+    return null;
+  }
+
+  String? _validateLastName(String? value) {
+    final locale = context.read<LocaleNotifier>().locale;
+
+    if (value == null || value.trim().isEmpty) {
       return t(locale, 'full_name_required');
     }
 
@@ -319,17 +353,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 32),
 
-                // Full Name Field
+                // First Name Field (instead of single Full Name, all CAPITALS)
                 TextFormField(
-                  controller: _fullNameController,
+                  controller: _firstNameController,
                   decoration: InputDecoration(
-                    labelText: t(locale, 'full_name'),
-                    hintText: t(locale, 'full_name_hint'),
+                    labelText: t(locale, 'first_name'),
+                    hintText: t(locale, 'first_name_hint'),
                     prefixIcon: const Icon(Icons.person),
                     border: const OutlineInputBorder(),
                   ),
                   textInputAction: TextInputAction.next,
-                  validator: _validateFullName,
+                  textCapitalization: TextCapitalization.characters,
+                  inputFormatters: [_UpperCaseTextFormatter()],
+                  validator: _validateFirstName,
+                ),
+                const SizedBox(height: 16),
+
+                // Last Name Field (all CAPITALS)
+                TextFormField(
+                  controller: _lastNameController,
+                  decoration: InputDecoration(
+                    labelText: t(locale, 'last_name'),
+                    hintText: t(locale, 'last_name_hint'),
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: const OutlineInputBorder(),
+                  ),
+                  textInputAction: TextInputAction.next,
+                  textCapitalization: TextCapitalization.characters,
+                  inputFormatters: [_UpperCaseTextFormatter()],
+                  validator: _validateLastName,
                 ),
                 const SizedBox(height: 16),
 

@@ -84,11 +84,15 @@ class LocalizationService {
       'password': 'Password',
       'confirm_password': 'Confirm Password',
       'full_name': 'Full Name',
+      'first_name': 'First Name',
+      'last_name': 'Last Name',
       'confirm_email': 'Confirm Email',
       'email_hint': 'your@email.com',
       'password_hint': 'At least 6 characters',
       'phone_hint': '+30 123 456 7890',
-      'full_name_hint': 'Enter your full name',
+      'full_name_hint': 'Enter your full name IN CAPITALS',
+      'first_name_hint': 'Enter your first name IN CAPITALS',
+      'last_name_hint': 'Enter your last name IN CAPITALS',
       'id_card_hint': 'Enter your ID card number',
       'enter_valid_email': 'Please enter a valid email address',
       'password_too_short': 'Password must be at least 6 characters long',
@@ -141,8 +145,16 @@ class LocalizationService {
       'education': 'Education',
       'university': 'University',
       'department': 'Department',
+      'school_registration_number': 'School Registration Number',
+      'school_registration_number_hint': 'Enter your school registration no.',
+      'school_registration_number_required':
+          'School registration number is required',
       'year_of_study': 'Year of Study',
       'has_other_degree': 'Has Other Degree',
+      'view_only_title': 'View Only',
+      'view_only_message':
+          'Your application has already been submitted. You can view your details but you cannot edit them.',
+      'already_submitted': 'Already Submitted',
 
       // Family Information
       'parents_info': 'Parents Info',
@@ -416,11 +428,15 @@ class LocalizationService {
       'password': 'Κωδικός Πρόσβασης',
       'confirm_password': 'Επιβεβαίωση Κωδικού',
       'full_name': 'Πλήρες Όνομα',
+      'first_name': 'Όνομα',
+      'last_name': 'Επώνυμο',
       'confirm_email': 'Επιβεβαίωση Email',
       'email_hint': 'το@email.σας',
       'password_hint': 'Τουλάχιστον 6 χαρακτήρες',
       'phone_hint': '+30 123 456 7890',
-      'full_name_hint': 'Εισάγετε το πλήρες όνομά σας',
+      'full_name_hint': 'Εισάγετε το πλήρες όνομά σας ΜΕ ΚΕΦΑΛΑΙΑ',
+      'first_name_hint': 'Εισάγετε το όνομά σας ΜΕ ΚΕΦΑΛΑΙΑ',
+      'last_name_hint': 'Εισάγετε το επώνυμό σας ΜΕ ΚΕΦΑΛΑΙΑ',
       'id_card_hint': 'Εισάγετε τον αριθμό δελτίου ταυτότητας',
       'enter_valid_email': 'Παρακαλώ εισάγετε μια έγκυρη διεύθυνση email',
       'password_too_short': 'Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες',
@@ -474,8 +490,17 @@ class LocalizationService {
       'education': 'Εκπαίδευση',
       'university': 'Πανεπιστήμιο',
       'department': 'Τμήμα',
+      'school_registration_number': 'Αριθμός Μητρώου Σχολής',
+      'school_registration_number_hint':
+          'Εισάγετε τον αριθμό μητρώου της σχολής σας',
+      'school_registration_number_required':
+          'Ο αριθμός μητρώου σχολής είναι υποχρεωτικός',
       'year_of_study': 'Έτος Σπουδών',
       'has_other_degree': 'Έχει Άλλο Πτυχίο',
+      'view_only_title': 'Προβολή Μόνο',
+      'view_only_message':
+          'Η αίτησή σας έχει ήδη υποβληθεί. Μπορείτε να δείτε τα στοιχεία σας αλλά δεν μπορείτε να τα αλλάξετε.',
+      'already_submitted': 'Έχει Υποβληθεί',
 
       // Family Information
       'parents_info': 'Στοιχεία Γονέων',
@@ -680,7 +705,7 @@ class LocalizationService {
   }
 
   static Map<String, String> getTranslations(String locale) {
-    return _translations[locale] ?? _translations['en']!;
+    return _translations[locale] ?? _translations['el']!;
   }
 
   static List<String> get supportedLocales => _translations.keys.toList();

@@ -10,6 +10,7 @@ class Student {
   final String? issuingAuthority;
   final String? university;
   final String? department;
+  final String? schoolRegistrationNumber;
   final String? yearOfStudy;
   final bool? hasOtherDegree;
   final String? email;
@@ -38,6 +39,7 @@ class Student {
     this.issuingAuthority,
     this.university,
     this.department,
+    this.schoolRegistrationNumber,
     this.yearOfStudy,
     this.hasOtherDegree,
     this.email,
@@ -70,6 +72,7 @@ class Student {
       issuingAuthority: map['issuing_authority']?.toString(),
       university: map['university']?.toString(),
       department: map['department']?.toString(),
+      schoolRegistrationNumber: map['school_registration_number']?.toString(),
       yearOfStudy: map['year_of_study']?.toString(),
       hasOtherDegree: map['has_other_degree'] as bool?,
       email: map['email']?.toString(),
@@ -105,6 +108,8 @@ class Student {
       if (issuingAuthority != null) 'issuing_authority': issuingAuthority,
       if (university != null) 'university': university,
       if (department != null) 'department': department,
+      if (schoolRegistrationNumber != null)
+        'school_registration_number': schoolRegistrationNumber,
       if (yearOfStudy != null) 'year_of_study': yearOfStudy,
       if (hasOtherDegree != null) 'has_other_degree': hasOtherDegree,
       if (email != null) 'email': email,
@@ -135,6 +140,7 @@ class Student {
     String? issuingAuthority,
     String? university,
     String? department,
+    String? schoolRegistrationNumber,
     String? yearOfStudy,
     bool? hasOtherDegree,
     String? email,
@@ -163,6 +169,8 @@ class Student {
       issuingAuthority: issuingAuthority ?? this.issuingAuthority,
       university: university ?? this.university,
       department: department ?? this.department,
+      schoolRegistrationNumber:
+          schoolRegistrationNumber ?? this.schoolRegistrationNumber,
       yearOfStudy: yearOfStudy ?? this.yearOfStudy,
       hasOtherDegree: hasOtherDegree ?? this.hasOtherDegree,
       email: email ?? this.email,
@@ -205,8 +213,8 @@ class Student {
   // Helper methods
   String get fullName {
     final parts = <String>[];
-    if (name?.isNotEmpty == true) parts.add(name!);
-    if (familyName?.isNotEmpty == true) parts.add(familyName!);
+    if (name?.isNotEmpty == true) parts.add(name!.toUpperCase());
+    if (familyName?.isNotEmpty == true) parts.add(familyName!.toUpperCase());
     return parts.join(' ');
   }
 

@@ -8,7 +8,7 @@ class ErrorService {
     String message, {
     String? locale,
   }) {
-    final currentLocale = locale ?? 'en';
+    final currentLocale = locale ?? 'el';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -31,7 +31,7 @@ class ErrorService {
     String message, {
     String? locale,
   }) {
-    final currentLocale = locale ?? 'en';
+    final currentLocale = locale ?? 'el';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -49,7 +49,7 @@ class ErrorService {
     );
   }
 
-  static String getErrorMessage(dynamic error, {String locale = 'en'}) {
+  static String getErrorMessage(dynamic error, {String locale = 'el'}) {
     if (error is PostgrestException) {
       switch (error.code) {
         case '23505':
@@ -133,7 +133,7 @@ class ErrorService {
     };
 
     final message =
-        errorMessages[locale]?[errorKey] ?? errorMessages['en']![errorKey]!;
+        errorMessages[locale]?[errorKey] ?? errorMessages['el']![errorKey]!;
 
     if (details != null && details.isNotEmpty) {
       return '$message: $details';
