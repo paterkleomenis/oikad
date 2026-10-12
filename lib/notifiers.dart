@@ -328,7 +328,7 @@ class CompletionNotifier extends ChangeNotifier {
         }
       }
 
-      // Check health documents completion
+      // Check health documents completion (files OR questionnaire form)
       try {
         final healthResult = await Supabase.instance.client
             .from('student_health_documents')
@@ -350,6 +350,19 @@ class CompletionNotifier extends ChangeNotifier {
               debugPrint('Error checking health storage: $e');
             }
           }
+        }
+        // Questionnaire counts as completion even without files
+        if (!_healthCompleted) {
+          try {
+            final formResult = await Supabase.instance.client
+                .from('student_health_forms')
+                .select('id')
+                .eq('student_id', studentId)
+                .limit(1);
+            if (formResult.isNotEmpty) {
+              _healthCompleted = true;
+            }
+          } catch (_) {}
         }
       } catch (e) {
         // Table might not exist yet if running against old DB

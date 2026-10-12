@@ -644,8 +644,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 locale,
                 'upload_documents',
                 Icons.upload_file_outlined,
-                // User cannot edit after completion/import (Admin only)
-                onView: null,
+                onView: () {
+                  Navigator.pop(context);
+                  _viewDocuments(context);
+                },
               ),
             if (completion.healthCompleted)
               _buildCompletedTaskItem(
@@ -653,7 +655,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 locale,
                 'upload_health_documents',
                 Icons.medical_services_outlined,
-                onView: null,
+                onView: () {
+                  Navigator.pop(context);
+                  _viewHealth(context);
+                },
               ),
             if (!completion.registrationCompleted &&
                 !completion.documentsCompleted &&
@@ -821,6 +826,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const DocumentsScreen()),
+    );
+  }
+
+  void _viewDocuments(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const DocumentsScreen(isViewOnly: true),
+      ),
+    );
+  }
+
+  void _viewHealth(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const HealthDocumentsScreen(isViewOnly: true),
+      ),
     );
   }
 

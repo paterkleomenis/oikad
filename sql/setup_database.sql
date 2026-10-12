@@ -398,7 +398,74 @@ GRANT SELECT ON application_summary TO anon;
 GRANT USAGE, SELECT ON SEQUENCE document_categories_id_seq TO authenticated, anon;
 
 -- ===========================================================================
--- 12. PREDEFINED DATA
+-- 12. HEALTH QUESTIONNAIRE TABLE (stoixia.docx - υγειονομικά στοιχεία)
+-- ===========================================================================
+
+CREATE TABLE IF NOT EXISTS student_health_forms (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID UNIQUE NOT NULL REFERENCES dormitory_students(id) ON DELETE CASCADE,
+
+    first_name VARCHAR(255),
+    last_name VARCHAR(255),
+    father_name VARCHAR(255),
+    mother_name VARCHAR(255),
+    birth_date DATE,
+    blood_type VARCHAR(10),
+
+    recent_surgeries TEXT,
+
+    hepatitis_covered BOOLEAN,
+    hepatitis_date DATE,
+    tetanus_covered BOOLEAN,
+    tetanus_date DATE,
+    meningitis_covered BOOLEAN,
+    meningitis_date DATE,
+
+    serious_illness BOOLEAN,
+    serious_illness_details TEXT,
+    medication TEXT,
+    special_diet BOOLEAN,
+    special_diet_details TEXT,
+
+    conditions TEXT[] DEFAULT ARRAY[]::TEXT[],
+    conditions_details TEXT,
+    other_observations TEXT,
+
+    consent_accepted BOOLEAN DEFAULT false,
+    consent_date TIMESTAMP WITH TIME ZONE,
+
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_student_health_forms_student_id
+    ON student_health_forms(student_id);
+
+CREATE TRIGGER update_student_health_forms_updated_at
+    BEFORE UPDATE ON student_health_forms
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE student_health_forms ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own health forms"
+    ON student_health_forms FOR ALL
+    TO authenticated
+    USING (auth.uid()::text = (SELECT auth_user_id::text FROM dormitory_students WHERE id = student_id))
+    WITH CHECK (auth.uid()::text = (SELECT auth_user_id::text FROM dormitory_students WHERE id = student_id));
+
+CREATE POLICY "Allow anonymous health form access"
+    ON student_health_forms FOR ALL
+    TO anon
+    USING (true)
+    WITH CHECK (true);
+
+GRANT ALL ON student_health_forms TO authenticated;
+GRANT ALL ON student_health_forms TO anon;
+
+COMMENT ON TABLE student_health_forms IS 'Ηλεκτρονική φόρμα υγειονομικών στοιχείων (stoixia.docx)';
+
+-- ===========================================================================
+-- 13. PREDEFINED DATA
 -- ===========================================================================
 
 -- Insert document categories

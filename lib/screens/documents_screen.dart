@@ -14,7 +14,8 @@ import '../services/text_utils.dart';
 import 'welcome_screen.dart';
 
 class DocumentsScreen extends StatefulWidget {
-  const DocumentsScreen({super.key});
+  final bool isViewOnly;
+  const DocumentsScreen({super.key, this.isViewOnly = false});
 
   @override
   State<DocumentsScreen> createState() => _DocumentsScreenState();
@@ -250,6 +251,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   }
 
   Future<void> _pickFile(String fileType) async {
+    if (widget.isViewOnly) return;
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -311,6 +313,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   }
 
   Future<void> _saveDocuments({bool isDraft = false}) async {
+    if (widget.isViewOnly) return;
     final locale = context.read<LocaleNotifier>().locale;
 
     // For non-draft submissions, validate all required fields
@@ -730,6 +733,36 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (widget.isViewOnly) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.visibility,
+                            color: Colors.blue.shade700,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              t(locale, 'view_only_message'),
+                              style: TextStyle(
+                                color: Colors.blue.shade900,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   // File Uploads Section
                   Text(
                     t(locale, 'upload_documents'),
@@ -766,12 +799,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   Column(
                     children: [
                       GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedDocumentType = 'id';
-                            _passportPhoto = null;
-                          });
-                        },
+                        onTap: widget.isViewOnly
+                            ? null
+                            : () {
+                                setState(() {
+                                  _selectedDocumentType = 'id';
+                                  _passportPhoto = null;
+                                });
+                              },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -831,13 +866,15 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedDocumentType = 'passport';
-                            _idFrontPhoto = null;
-                            _idBackPhoto = null;
-                          });
-                        },
+                        onTap: widget.isViewOnly
+                            ? null
+                            : () {
+                                setState(() {
+                                  _selectedDocumentType = 'passport';
+                                  _idFrontPhoto = null;
+                                  _idBackPhoto = null;
+                                });
+                              },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -955,11 +992,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     children: [
                       Checkbox(
                         value: _consentAccepted,
-                        onChanged: (value) {
-                          setState(() {
-                            _consentAccepted = value ?? false;
-                          });
-                        },
+                        onChanged: widget.isViewOnly
+                            ? null
+                            : (value) {
+                                setState(() {
+                                  _consentAccepted = value ?? false;
+                                });
+                              },
                         activeColor:
                             Theme.of(context).brightness == Brightness.dark
                             ? const Color(0xFF64B5F6)
@@ -1015,13 +1054,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   const SizedBox(height: 20),
 
                   // Submit Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: _isLoading
-                          ? null
-                          : () => _saveDocuments(isDraft: false),
+                  if (!widget.isViewOnly)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () => _saveDocuments(isDraft: false),
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
                             Theme.of(context).brightness == Brightness.dark
